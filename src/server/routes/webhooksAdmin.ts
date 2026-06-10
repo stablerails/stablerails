@@ -13,7 +13,7 @@ import type { EventRepository } from "../../core/ports.js";
 import type { RateLimiter } from "../../lib/rate-limit.js";
 import { sealSecret } from "../../lib/secretBox.js";
 import { assertSafeUrl, SsrfGuardError } from "../../lib/ssrf-guard.js";
-import { requireScope } from "../auth.js";
+import { requireScope, tenantOf, matchesTenant } from "../auth.js";
 import type { ApiKeyRepository } from "../auth.js";
 import { sendWithEventUid, type SendResult } from "../../workers/webhookDelivery.js";
 
@@ -155,7 +155,11 @@ export async function registerWebhookRoutes(
     },
   );
 
-  // GET /v1/webhooks — readonly+ (agent-facing read)
+  // GET /v1/webhooks — readonly+ (agent-facing read), TENANT-SCOPED.
+  // Endpoint tenancy is inherited through the endpoint's event (TENANT-1):
+  // merchant/readonly keys see only endpoints of their own tenant; endpoints
+  // with eventId = null belong to the legacy null tenant; event-scoped keys
+  // see only endpoints bound to their event. Admin keys see everything.
   app.get(
     "/v1/webhooks",
     { preHandler: readonlyAuth },
@@ -165,8 +169,31 @@ export async function registerWebhookRoutes(
         return reply.code(429).send({ error: { code: "RATE_LIMITED", message: "Too many requests" } });
       }
       const list = await webhookRepo.list();
+      const tenant = tenantOf(k);
+      // undefined value = event missing → fail closed (endpoint stays hidden).
+      const eventTenantCache = new Map<string, string | null | undefined>();
+      const visible: WebhookEndpointRecord[] = [];
+      for (const ep of list) {
+        // Event-scoped keys are confined to endpoints of their own event.
+        if (k.eventId != null && ep.eventId !== k.eventId) continue;
+        if (tenant === undefined) {
+          visible.push(ep); // admin
+          continue;
+        }
+        if (ep.eventId === null) {
+          // Global/legacy endpoint — belongs to the null (default) tenant.
+          if (tenant === null) visible.push(ep);
+          continue;
+        }
+        if (!eventTenantCache.has(ep.eventId)) {
+          const event = await eventRepo.findById(ep.eventId);
+          eventTenantCache.set(ep.eventId, event ? (event.merchantId ?? null) : undefined);
+        }
+        const epTenant = eventTenantCache.get(ep.eventId);
+        if (epTenant !== undefined && matchesTenant(tenant, epTenant)) visible.push(ep);
+      }
       // Secret is returned ONLY at create time — strip it from list responses.
-      const sanitized = list.map(({ id, eventId, url, active, createdAt }) => ({
+      const sanitized = visible.map(({ id, eventId, url, active, createdAt }) => ({
         id,
         eventId,
         url,
