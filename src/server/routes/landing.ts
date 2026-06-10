@@ -70,14 +70,15 @@ function renderFeatures(): string {
 }
 
 /** Lines mirrored from the real \`stablerails init\` output (src/cli/commands/init.ts). */
-const INIT_TRANSCRIPT = [
+const INIT_TRANSCRIPT_LINES = [
   "[1/6] Checking database connectivity... OK",
   "[2/6] Operator account... created",
   "[4/6] Payment event... created",
   "[6/6] Magic login link... minted (single-use, 15 min)",
-].join("\n");
+];
 
-/** Terminal-framed copyable command block. Copy button is revealed by JS (dead control otherwise). */
+/** Terminal-framed copyable command block. Copy button is revealed by JS (dead control otherwise).
+ *  Inside .hero the command types itself and the transcript lines land one by one (pure CSS). */
 function renderCommandBlock(idSuffix: string, withOutput = false): string {
   return `
       <div class="term" role="group" aria-label="Install command">
@@ -85,10 +86,10 @@ function renderCommandBlock(idSuffix: string, withOutput = false): string {
           <span class="term-title">stablerails init</span>
         </div>
         <div class="term-body">
-          <code class="term-cmd"><span class="term-prompt">$</span> ${INIT_COMMAND}</code>
+          <code class="term-cmd"><span class="term-prompt">$</span> <span class="type">${INIT_COMMAND}</span></code>
           <button class="copy-btn" id="copy-${idSuffix}" type="button" data-copy="${INIT_COMMAND}" aria-label="Copy command to clipboard" hidden>copy</button>
         </div>${withOutput ? `
-        <pre class="term-out">${INIT_TRANSCRIPT}</pre>` : ""}
+        <pre class="term-out">${INIT_TRANSCRIPT_LINES.map((l) => `<span class="term-line">${l}</span>`).join("")}</pre>` : ""}
       </div>`;
 }
 
@@ -123,6 +124,8 @@ function renderDiagram(): string {
         <rect class="d-box d-box-dim" x="198" y="158" width="220" height="56" rx="6"/>
         <text class="d-label" x="308" y="182" text-anchor="middle">WATCH-ONLY SERVER</text>
         <text class="d-sub" x="308" y="200" text-anchor="middle">observes the chain &middot; holds no keys</text>
+        <!-- payment pulse: travels payer → address → (gate) → wallet -->
+        <circle class="d-pulse" cx="128" cy="68" r="4"/>
       </svg>
       </div>`;
 }
@@ -242,8 +245,21 @@ function renderLanding(scriptNonce?: string, styleNonce?: string, demoEnabled?: 
     .term-prompt { color: var(--acc-bright); margin-right: .5rem; }
     .term-out {
       font-family: var(--mono); font-size: .78rem; color: var(--dim);
-      padding: 0 1.1rem 1rem; line-height: 1.7; white-space: pre; overflow-x: auto;
+      padding: 0 1.1rem 1rem; line-height: 1.7; overflow-x: auto;
     }
+    .term-line { display: block; white-space: pre; }
+    /* hero terminal: the command types itself, then output lines land one by one */
+    .hero .type {
+      display: inline-block; overflow: hidden; white-space: nowrap; vertical-align: bottom;
+      animation: typing 1s steps(${INIT_COMMAND.length}, end) .5s both;
+    }
+    @keyframes typing { from { width: 0; } to { width: ${INIT_COMMAND.length}ch; } }
+    .hero .term-line { opacity: 0; animation: line-in .25s ease-out forwards; }
+    .hero .term-line:nth-child(1) { animation-delay: 1.7s; }
+    .hero .term-line:nth-child(2) { animation-delay: 2s; }
+    .hero .term-line:nth-child(3) { animation-delay: 2.3s; }
+    .hero .term-line:nth-child(4) { animation-delay: 2.6s; }
+    @keyframes line-in { to { opacity: 1; } }
     .copy-btn {
       font-family: var(--mono); font-size: .7rem; font-weight: 700;
       letter-spacing: .1em; text-transform: uppercase;
@@ -273,8 +289,16 @@ function renderLanding(scriptNonce?: string, styleNonce?: string, demoEnabled?: 
     .hero > *:nth-child(6) { animation-delay: .35s; }
     .hero > *:nth-child(7) { animation-delay: .42s; }
     @keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+    /* sections fade in on scroll; .js-reveal is set by JS, so no-JS visitors see everything */
+    .js-reveal .sec {
+      opacity: 0; transform: translateY(16px);
+      transition: opacity .55s cubic-bezier(.16, 1, .3, 1), transform .55s cubic-bezier(.16, 1, .3, 1);
+    }
+    .js-reveal .sec.in { opacity: 1; transform: none; }
     @media (prefers-reduced-motion: reduce) {
-      .hero > *, .cursor { animation: none !important; }
+      .hero > *, .cursor, .hero .type, .hero .term-line, .d-gate { animation: none !important; }
+      .hero .term-line { opacity: 1; }
+      .d-pulse { display: none; }
       html { scroll-behavior: auto; }
     }
 
@@ -312,8 +336,19 @@ function renderLanding(scriptNonce?: string, styleNonce?: string, demoEnabled?: 
     .d-line { stroke: var(--line-strong); stroke-width: 1.5; }
     .d-arrow { fill: var(--line-strong); }
     .d-dash { stroke: var(--line-strong); stroke-width: 1.5; stroke-dasharray: 4 4; }
-    .d-gate { stroke: var(--acc-bright); stroke-width: 2; }
+    .d-gate { stroke: var(--acc-bright); stroke-width: 2; animation: gate-pulse 5s ease infinite .8s; }
     .d-gate-label { fill: var(--acc-bright); font-size: 9px; letter-spacing: .12em; font-family: var(--mono); }
+    /* payment pulse: a payment travels the rail, pauses at the human gate, lands in the wallet */
+    .d-pulse { fill: var(--acc-bright); opacity: 0; animation: flow 5s cubic-bezier(.45, .05, .55, .95) infinite .8s; }
+    @keyframes flow {
+      0% { transform: translateX(0); opacity: 0; }
+      6% { opacity: 1; }
+      44% { transform: translateX(348px); }
+      54% { transform: translateX(368px); }
+      86% { transform: translateX(444px); opacity: 1; }
+      94%, 100% { transform: translateX(444px); opacity: 0; }
+    }
+    @keyframes gate-pulse { 44%, 54% { stroke-width: 2; } 49% { stroke-width: 4; } }
     .callout {
       font-family: var(--mono); font-size: 1.05rem; font-weight: 700;
       color: var(--text); border: 1px solid rgba(38, 161, 123, .4);
@@ -427,7 +462,7 @@ function renderLanding(scriptNonce?: string, styleNonce?: string, demoEnabled?: 
     <p class="tagline-tags"><b>0% fees</b>, <b>no KYC</b>, <b>agent-friendly</b>. Your keys never touch the server.</p>
     ${renderCommandBlock("hero", true)}
     <p class="hero-alt">Or hand it to your agent: <a href="/agents.md">/agents.md &rarr;</a></p>
-    <p class="hero-fine">Free and open-source (AGPL-3.0). No signup, no account, nothing to cancel. You only ever pay network gas, and that goes to the blockchain, not to us. If it&#39;s not for you, delete the directory.</p>
+    <p class="hero-fine">No signup, nothing to cancel. You only pay network gas. Not for you? Delete the directory.</p>
   </section>
 
   <!-- ── 2 · HOW IT WORKS ─────────────────────────────────── -->
@@ -442,21 +477,21 @@ function renderLanding(scriptNonce?: string, styleNonce?: string, demoEnabled?: 
           <span class="step-no">1.</span>
           <div>
             <h3>Run the watch-only server</h3>
-            <p>It serves your checkout and verifies payments on-chain. It holds no keys; there is nothing on it worth stealing. Misconfigure it and the worst you get is a stalled invoice. Keys and funds are never at stake on the server.</p>
+            <p>It serves checkout and verifies payments on-chain. No keys on it: the worst misconfiguration is a stalled invoice, never lost funds.</p>
           </div>
         </div>
         <div class="step">
           <span class="step-no">2.</span>
           <div>
             <h3>Every invoice gets its own deposit address</h3>
-            <p>Fresh HD-derived addresses per invoice. When the payment is confirmed at a solid block (about a minute on Tron), your webhook fires. Never 0-conf.</p>
+            <p>A fresh HD address per invoice. Confirmed at a solid block (~1 min on Tron), then your webhook fires. Never 0-conf.</p>
           </div>
         </div>
         <div class="step">
           <span class="step-no">3.</span>
           <div>
             <h3>Funds sweep to <em>your</em> wallet, signed locally</h3>
-            <p>The sweep is signed on your machine, behind a passphrase you type at your own terminal. The server only ever sees the finished, signed transaction.</p>
+            <p>Signed on your machine, behind a passphrase you type at your own terminal. The server only sees the finished transaction.</p>
           </div>
         </div>
       </div>
@@ -477,7 +512,7 @@ function renderLanding(scriptNonce?: string, styleNonce?: string, demoEnabled?: 
       <dl class="ledger">
         <div class="ledger-row">
           <dt>Watch-only server</dt>
-          <dd>Zero private keys on the server. Worst case, a full server compromise: the attacker reads invoice metadata. They cannot move a single token, and they cannot redirect a sweep.</dd>
+          <dd>Zero keys on the server. Full compromise, worst case: the attacker reads invoice metadata. Funds untouchable.</dd>
         </div>
         <div class="ledger-row">
           <dt>Signing is local, human, deliberate</dt>
@@ -489,7 +524,7 @@ function renderLanding(scriptNonce?: string, styleNonce?: string, demoEnabled?: 
         </div>
         <div class="ledger-row">
           <dt>Two RPCs must agree</dt>
-          <dd>Both providers must independently read the same transfer from on-chain receipts at a solid block. If they disagree, nothing is credited and the check retries next tick. The failure mode is a payment showing up seconds late. Never a false &#39;paid&#39;.</dd>
+          <dd>Two providers must read the same on-chain receipt at a solid block. Disagree: nothing credits, retry next tick. Never a false &#39;paid&#39;.</dd>
         </div>
         <div class="ledger-row">
           <dt>AI agents get readonly keys</dt>
@@ -497,15 +532,15 @@ function renderLanding(scriptNonce?: string, styleNonce?: string, demoEnabled?: 
         </div>
         <div class="ledger-row">
           <dt>100% open source</dt>
-          <dd>Every line is public, including the signer. 1,000+ automated tests run fully offline: no network, no API keys, no accounts. Don&#39;t trust our claims. Clone, run the suite, audit.</dd>
+          <dd>Every line is public, signer included. 1,000+ offline tests: clone, run, audit.</dd>
         </div>
         <div class="ledger-row">
           <dt>Survives the project</dt>
-          <dd>AGPL-3.0 is irrevocable. If this repo vanished tomorrow, your instance keeps running and anyone may fork it. You depend on the code on your disk, not on us.</dd>
+          <dd>AGPL-3.0 is irrevocable. Repo gone tomorrow? Your instance keeps running, anyone can fork. You depend on the code on your disk, not on us.</dd>
         </div>
         <div class="ledger-row">
           <dt>Zero exit cost</dt>
-          <dd>Your funds are already in your wallet. Your data is plain Postgres on your machine. Stop the containers and walk away. There is no account to close.</dd>
+          <dd>Funds already in your wallet, data in your Postgres. Stop the containers, walk away. No account to close.</dd>
         </div>
       </dl>
     </div>
@@ -527,7 +562,7 @@ function renderLanding(scriptNonce?: string, styleNonce?: string, demoEnabled?: 
         <div class="agent-path">
           <h3>Path B &middot; your agent reads</h3>
           <a class="agent-link" href="/agents.md">/agents.md &rarr;</a>
-          <p class="agent-note">Hand this file to any capable agent. It contains everything needed to install, configure and run an instance, and a hard boundary: it never asks for your passphrase. Run it on a readonly key, and even a fully misled agent can create invoices, not move funds.</p>
+          <p class="agent-note">Everything an agent needs to install, configure and run an instance, plus a hard boundary: it never asks for your passphrase. On a readonly key, even a misled agent can&#39;t move funds.</p>
         </div>
       </div>
     </div>
@@ -542,7 +577,7 @@ function renderLanding(scriptNonce?: string, styleNonce?: string, demoEnabled?: 
     <div class="sec-body">
       <div class="feat-grid">${renderFeatures()}
       </div>
-      <span class="roadmap"><b>Tron (USDT) shipped today</b> &middot; Polygon, Ethereum, USDC tracked in the open &rarr; <a href="https://github.com/stablerails/stablerails/issues" rel="noopener">github issues</a></span>
+      <span class="roadmap"><b>Tron (USDT) shipped</b> &middot; Polygon, Ethereum, USDC &rarr; <a href="https://github.com/stablerails/stablerails/issues" rel="noopener">tracked in the open</a></span>
     </div>
   </section>
 
@@ -553,7 +588,7 @@ function renderLanding(scriptNonce?: string, styleNonce?: string, demoEnabled?: 
       <h2>No KYC.<br>Not anonymous.</h2>
     </div>
     <div class="sec-body">
-      <p class="plain"><strong>USDT on Tron is a transparent ledger, and the token itself is centrally managed:</strong> the issuer can freeze addresses. We collect no payer emails and log no payer IPs, but on-chain privacy is limited by the asset itself. We&#39;d rather tell you that here than in the fine print. The mitigation is in your hands too: you sweep to your own wallet on your own schedule, so funds never have to linger at deposit addresses.</p>
+      <p class="plain"><strong>USDT on Tron is a transparent ledger, and the token itself is centrally managed:</strong> the issuer can freeze addresses. We collect no payer emails and log no payer IPs, but on-chain privacy is limited by the asset itself. We&#39;d rather tell you that here than in the fine print. Your lever: sweep on your own schedule, so funds don&#39;t linger at deposit addresses.</p>
     </div>
   </section>
 
@@ -622,6 +657,18 @@ function renderLanding(scriptNonce?: string, styleNonce?: string, demoEnabled?: 
       }).catch(function () { /* clipboard unavailable — no-op */ });
     });
   });
+
+  // Scroll-reveal for sections. Gated behind .js-reveal so content is always
+  // visible without JS; skipped entirely under prefers-reduced-motion.
+  if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches && "IntersectionObserver" in window) {
+    document.documentElement.classList.add("js-reveal");
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (entry.isIntersecting) { entry.target.classList.add("in"); io.unobserve(entry.target); }
+      });
+    }, { rootMargin: "0px 0px -10% 0px" });
+    document.querySelectorAll(".sec").forEach(function (s) { io.observe(s); });
+  }
 </script>
 
 </body>
