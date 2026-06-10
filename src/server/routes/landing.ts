@@ -308,7 +308,7 @@ function renderLanding(scriptNonce?: string, styleNonce?: string, demoEnabled?: 
     .sec-no { display: block; font-size: .72rem; letter-spacing: .18em; color: var(--acc); margin-bottom: .9rem; }
     .sec-rail h2 { font-family: var(--mono); font-size: 1.35rem; font-weight: 700; letter-spacing: -.02em; line-height: 1.3; color: var(--text); text-wrap: balance; }
     .sec-body p { color: var(--muted); max-width: 62ch; }
-    .plain, .legal { text-wrap: pretty; }
+    .legal { text-wrap: pretty; }
 
     /* how it works */
     .steps { display: grid; gap: 1.6rem; margin-bottom: 1.6rem; }
@@ -399,9 +399,7 @@ function renderLanding(scriptNonce?: string, styleNonce?: string, demoEnabled?: 
     }
     .roadmap b { color: var(--acc-bright); font-weight: 600; }
 
-    /* honesty + legal */
-    .plain { font-size: 1rem; color: var(--muted); max-width: 62ch; }
-    .plain strong { color: var(--text); }
+    /* legal */
     .legal {
       font-family: var(--mono); font-size: .82rem; line-height: 1.7; color: var(--muted);
       border: 1px solid var(--line-strong); border-radius: 10px;
@@ -581,34 +579,23 @@ function renderLanding(scriptNonce?: string, styleNonce?: string, demoEnabled?: 
     </div>
   </section>
 
-  <!-- ── 6 · HONESTY ──────────────────────────────────────── -->
-  <section class="sec" id="honesty">
-    <div class="sec-rail">
-      <span class="sec-no">05</span>
-      <h2>No KYC.<br>No illusions.</h2>
-    </div>
-    <div class="sec-body">
-      <p class="plain"><strong>A Tron wallet takes no ID to create, and we add no KYC on top.</strong> We collect no payer emails and log no payer IPs. The ledger underneath is public forever, and the issuer can freeze USDT addresses: that makes payments pseudonymous, not anonymous. Anyone promising more is selling illusions. We&#39;d rather tell you that here than in the fine print.</p>
-    </div>
-  </section>
-
-  <!-- ── 7 · JUST SOFTWARE ────────────────────────────────── -->
+  <!-- ── 6 · JUST SOFTWARE ────────────────────────────────── -->
   <section class="sec" id="legal">
     <div class="sec-rail">
-      <span class="sec-no">06</span>
+      <span class="sec-no">05</span>
       <h2>Just software</h2>
     </div>
     <div class="sec-body">
       <div class="legal">
-        <strong>Stablerails is software, not a payment service.</strong> Each operator runs their own instance and controls their own keys and funds. The project never holds, transmits, or has access to anyone&#39;s money. <a href="/terms">Terms</a> &middot; <a href="/docs">Read the docs &rarr;</a>
+        <strong>Stablerails is software, not a payment service.</strong> Each operator runs their own instance and controls their own keys and funds. The project never holds, transmits, or has access to anyone&#39;s money. No KYC. No payer emails collected, no payer IPs logged. <a href="/terms">Terms</a> &middot; <a href="/docs">Read the docs &rarr;</a>
       </div>
     </div>
   </section>
 
-  <!-- ── 8 · CLOSING CTA ──────────────────────────────────── -->
+  <!-- ── 7 · CLOSING CTA ──────────────────────────────────── -->
   <section class="sec" id="start">
     <div class="sec-rail">
-      <span class="sec-no">07</span>
+      <span class="sec-no">06</span>
       <h2>Run your own rails</h2>
     </div>
     <div class="sec-body">
