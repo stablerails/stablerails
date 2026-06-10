@@ -661,7 +661,7 @@ function renderLanding(scriptNonce?: string, styleNonce?: string, demoEnabled?: 
     </div>
     <div class="sec-body">
       <dl class="none-ledger">
-        <div class="none-row"><dt>signup</dt><span class="dots"></span><dd>none</dd></div>
+        <div class="none-row"><dt>account with us</dt><span class="dots"></span><dd>none, the only login is on your own server</dd></div>
         <div class="none-row"><dt>legal entity</dt><span class="dots"></span><dd>not required to run software</dd></div>
         <div class="none-row"><dt>bank account</dt><span class="dots"></span><dd>not needed</dd></div>
         <div class="none-row"><dt>approval</dt><span class="dots"></span><dd>no one to ask</dd></div>
