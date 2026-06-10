@@ -585,10 +585,10 @@ function renderLanding(scriptNonce?: string, styleNonce?: string, demoEnabled?: 
   <section class="sec" id="honesty">
     <div class="sec-rail">
       <span class="sec-no">05</span>
-      <h2>No KYC.<br>Not anonymous.</h2>
+      <h2>No KYC.<br>No illusions.</h2>
     </div>
     <div class="sec-body">
-      <p class="plain"><strong>USDT on Tron is a transparent ledger, and the token itself is centrally managed:</strong> the issuer can freeze addresses. We collect no payer emails and log no payer IPs, but on-chain privacy is limited by the asset itself. We&#39;d rather tell you that here than in the fine print. Your lever: sweep on your own schedule, so funds don&#39;t linger at deposit addresses.</p>
+      <p class="plain"><strong>A Tron wallet takes no ID to create, and we add no KYC on top.</strong> We collect no payer emails and log no payer IPs. The ledger underneath is public forever, and the issuer can freeze USDT addresses: that makes payments pseudonymous, not anonymous. Anyone promising more is selling illusions. We&#39;d rather tell you that here than in the fine print.</p>
     </div>
   </section>
 
