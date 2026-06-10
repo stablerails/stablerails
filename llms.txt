@@ -1,0 +1,48 @@
+# Stablerails
+
+Watch-only USDT (TRC-20) payment platform.
+Server never holds keys. Signing is local-only via passphrase-gated CLI.
+
+## Key Source
+
+- src/core/ports.ts — domain port interfaces
+- src/core/invoices.ts — createInvoice
+- src/core/lifecycle.ts — transitionInvoice (state machine)
+- src/server/app.ts — Fastify app factory
+- src/server/killswitch.ts — isPaused / pauseArea / resumeArea
+- src/workers/watcher.ts — TronWatcher (two-RPC agreement, solid-block gate)
+- src/workers/webhookDelivery.ts — drainPending (HMAC-signed POST, retry)
+- src/signer/ — seed encrypt/decrypt, sweep signing (LOCAL ONLY)
+- src/cli/ — operator CLI
+- src/mcp/ — MCP server
+
+## Docs
+
+- README.md — setup, env vars, quick-start, kill-switch, audit notes
+- CLAUDE.md — conventions, commands, known limitations
+- docs/runbook-sweep.md — operator sweep runbook (energy rental, passphrase gate)
+- docs/superflow/ — sprint specs (superflow build methodology)
+
+## Key Constraints
+
+- Money = micro-USDT bigint (6 decimals). `1 USDT = 1_000_000n`. Never float. Minimum invoice amount 0.01 USDT (10 000 micro); below this `POST /v1/invoices` returns `400 AMOUNT_TOO_SMALL` (MONEY-3).
+- `paid` only when two conditions hold: finality fence `latestSolidBlock = min(primarySolid, secondarySolid)`; AND per-tx two-sided agreement `max(primaryBN, secondaryBN) <= latestSolidBlock` (WATCH-1 — both providers must place the tx at/below solid).
+- server/workers NEVER import signer (ESLint enforced).
+- Two-RPC agreement required for any credit.
+- Watcher `min_timestamp` is only an optimization; unresolved invoices are replay-scanned so provider lag/disagreement cannot permanently hide older transfers behind the global cursor.
+- Kill-switch: `STABLERAILS_PAUSE_*` env flags are **boot-time only** (require restart). Runtime control: `POST /v1/admin/killswitch { area, paused }` / `GET /v1/admin/killswitch` (admin scope) — DB-backed, cross-process (~1.5s propagation to worker).
+- API-key scopes: `readonly < merchant < admin`. MCP server uses `STABLERAILS_MCP_KEY` (`readonly` key; falls back to `STABLERAILS_ADMIN_KEY`). Readonly may call agent-facing GET endpoints and `POST /v1/sweeps/prepare`; broadcast-result remains admin-only.
+- API keys may optionally be event-scoped (`eventId`); scoped keys are limited to that event's invoices while unscoped keys preserve single-tenant/global behavior.
+- `POST /v1/invoices` idempotency is persisted in DB and scoped by API key. DB rows reserve `processing` before invoice creation and complete atomically after response caching; same key/body replays, same key/different body returns `409`, in-flight duplicates wait briefly then may return `425 IDEMPOTENCY_IN_PROGRESS`.
+- Invoice TTL cap: `ttlMinutes` max 1440 (24 h); non-integer/NaN/out-of-range → `400 TTL_OUT_OF_RANGE` (SEC-2).
+- Sweep destination pin (SIGN-2): `STABLERAILS_MAIN_WALLET` (`T...` Tron Base58) is required for `sweep execute`. Every item's destination is hard-asserted against this local env var before signing; sweep aborts on any mismatch. Operator must confirm at TTY before passphrase prompt.
+- Live sweep execution (SIGN-3): when `TRON_RPC_PRIMARY` is set, `src/cli/commands/sweep.ts` rebuilds each transfer locally from the item source address, pinned `STABLERAILS_MAIN_WALLET`, amount, and known USDT contract before calling `src/chain/tron/triggerSmartContract.ts`; server-provided `unsignedTx.callData` is never trusted on the live path. Trigger responses must have `txID`, `raw_data_hex`, non-empty `raw_data.contract`, `raw_data.contract[0]` matching the requested owner/contract/data/call_value intent, unchanged fee_limit, and `txID = sha256(raw_data_hex)`. Dry-run (no `TRON_RPC_PRIMARY`) still uses mock signable txs and does not post broadcast-result.
+- Webhook URL pre-screen (WH-4): `POST /v1/webhooks` validates `url` at registration — must be `https://` and pass SSRF check (private/loopback/link-local/metadata IPs rejected); `400 INVALID_URL` on failure.
+- Outbound webhook SSRF guard: real undici DNS pinning — hostname resolved once, connection pinned to pre-validated IP (WH-1, fail-closed).
+- Webhook delivery claims: production `claimPending` uses DB leases with `SELECT ... FOR UPDATE SKIP LOCKED`; markDelivered/markFailed/markDead clear leases and reject stale claim tokens.
+- `POST /v1/webhooks/test` performs a signed SSRF-guarded POST; `delivered` is true only on 2xx, inactive endpoints return `409 WEBHOOK_INACTIVE`, and secrets are never returned.
+- Sweep broadcast-result hardening: item addresses must belong to the intent, be unique strings, and txHash must be 64 hex chars.
+- Docker Compose keeps `.env` optional for config validation, binds the server to localhost by default, runs app containers as non-root, leaves RPC URLs blank/fail-fast, and never mounts demo routes in production runtime.
+- All tests offline (in-memory repos, mocked Tron RPC, mainnet-scale block numbers).
+
+<!-- updated-by-superflow:2026-06-06 -->

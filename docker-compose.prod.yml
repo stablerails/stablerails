@@ -1,0 +1,160 @@
+# Production Docker Compose — Stablerails
+# Watch-only server: no keys on this box. Signer/sweep runs on operator's local machine.
+#
+# Networks:
+#   backend  — internal: postgres ↔ server ↔ worker (not published, no internet)
+#   frontend — caddy ↔ server (not published to host either; caddy owns :80/:443)
+#   egress   — worker → internet (Tron RPC); postgres stays internet-isolated
+#
+# All env via .env (gitignored). See .env.prod.example for required vars.
+
+services:
+
+  # ── PostgreSQL 17 ─────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-stablerails}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-stablerails}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    # NOT port-published — accessible only via the backend network
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-stablerails} -d ${POSTGRES_DB:-stablerails}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+
+  # ── HTTP API server ────────────────────────────────────────────────────────
+  # Runs `prisma migrate deploy` then starts node dist/index.js (via entrypoint).
+  server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # SECURITY: explicit env only (no blanket env_file) — the server is
+    # watch-only and must NEVER receive key material. STABLERAILS_ENCRYPTED_SEED,
+    # STABLERAILS_MAIN_WALLET and STABLERAILS_ADMIN_KEY stay on the operator's
+    # machine only; `${VAR}` values below are interpolated by compose from .env.
+    environment:
+      NODE_ENV: production
+      STABLERAILS_ENV: ${STABLERAILS_ENV:-production}
+      HOST: "0.0.0.0"
+      PORT: "3000"
+      LOG_LEVEL: "${LOG_LEVEL:-info}"
+      # Internal DB URL uses service name — never exposed outside the compose network
+      DATABASE_URL: "postgresql://${POSTGRES_USER:-stablerails}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}@postgres:5432/${POSTGRES_DB:-stablerails}"
+      PUBLIC_BASE_URL: "${PUBLIC_BASE_URL:?PUBLIC_BASE_URL must be set in .env}"
+      # USDT contract override (testnet runs); empty = mainnet default
+      TRON_USDT_CONTRACT: "${TRON_USDT_CONTRACT:-}"
+      # Webhook-secret encryption at rest (optional; empty = plaintext storage)
+      STABLERAILS_DATA_KEY: "${STABLERAILS_DATA_KEY:-}"
+      # Boot-time kill-switches (optional; empty = not paused)
+      STABLERAILS_PAUSE_INVOICES: "${STABLERAILS_PAUSE_INVOICES:-}"
+      STABLERAILS_PAUSE_WATCHER: "${STABLERAILS_PAUSE_WATCHER:-}"
+      STABLERAILS_PAUSE_WEBHOOKS: "${STABLERAILS_PAUSE_WEBHOOKS:-}"
+      # Demo page (testnet deploys only — keep ENABLE_DEMO off on mainnet)
+      ENABLE_DEMO: "${ENABLE_DEMO:-}"
+      DEMO_MERCHANT_KEY: "${DEMO_MERCHANT_KEY:-}"
+      DEMO_EVENT_ID: "${DEMO_EVENT_ID:-}"
+      # Prometheus /metrics endpoint (empty = endpoint disabled)
+      METRICS_TOKEN: "${METRICS_TOKEN:-}"
+      # Fiat→USDT rate override in micro-USDT (empty = 1:1 default)
+      USDT_RATE_MICRO: "${USDT_RATE_MICRO:-}"
+    # NOT published to the host — reachable only via caddy on the frontend network
+    networks:
+      - backend
+      - frontend
+    command: ["server"]
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:3000/login || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  # ── Block watcher + webhook delivery ──────────────────────────────────────
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      server:
+        condition: service_healthy
+    # SECURITY: explicit env only (no blanket env_file) — see the note on `server`.
+    environment:
+      NODE_ENV: production
+      STABLERAILS_ENV: ${STABLERAILS_ENV:-production}
+      LOG_LEVEL: "${LOG_LEVEL:-info}"
+      DATABASE_URL: "postgresql://${POSTGRES_USER:-stablerails}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}@postgres:5432/${POSTGRES_DB:-stablerails}"
+      # Two distinct mainnet RPC endpoints required — worker fails fast if blank.
+      # Do NOT mix mainnet and Nile/Shasta testnet URLs.
+      TRON_RPC_PRIMARY_URL: "${TRON_RPC_PRIMARY_URL:-}"
+      TRON_RPC_SECONDARY_URL: "${TRON_RPC_SECONDARY_URL:-}"
+      TRON_RPC_PRIMARY_API_KEY: "${TRON_RPC_PRIMARY_API_KEY:-}"
+      TRON_RPC_SECONDARY_API_KEY: "${TRON_RPC_SECONDARY_API_KEY:-}"
+      # USDT contract override (testnet runs); empty = mainnet default
+      TRON_USDT_CONTRACT: "${TRON_USDT_CONTRACT:-}"
+      # Testnet-only single-transfer-provider relaxation (fail-closed startup guard)
+      WATCHER_TESTNET_SINGLE_TRANSFER_PROVIDER: "${WATCHER_TESTNET_SINGLE_TRANSFER_PROVIDER:-}"
+      # Optional poll tuning (ms); empty = built-in defaults
+      WATCHER_POLL_INTERVAL_MS: "${WATCHER_POLL_INTERVAL_MS:-}"
+      WEBHOOK_POLL_INTERVAL_MS: "${WEBHOOK_POLL_INTERVAL_MS:-}"
+      # Webhook-secret encryption at rest — worker decrypts for delivery
+      # signing; MUST match the server's key (optional; empty = plaintext)
+      STABLERAILS_DATA_KEY: "${STABLERAILS_DATA_KEY:-}"
+      # Boot-time kill-switches (optional; empty = not paused)
+      STABLERAILS_PAUSE_WATCHER: "${STABLERAILS_PAUSE_WATCHER:-}"
+      STABLERAILS_PAUSE_WEBHOOKS: "${STABLERAILS_PAUSE_WEBHOOKS:-}"
+    # worker needs OUTBOUND internet to reach the Tron RPC (TronGrid/Nile) —
+    # so it is on `egress` (non-internal) in addition to `backend`. postgres
+    # stays on `backend` only and remains internet-isolated.
+    networks:
+      - backend
+      - egress
+    command: ["worker"]
+
+  # ── Caddy reverse proxy (TLS termination) ─────────────────────────────────
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      - server
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    environment:
+      # Domain injected into Caddyfile via snippet below
+      DOMAIN: "${DOMAIN:-pay.example.com}"
+    networks:
+      - frontend
+
+# ── Named volumes ──────────────────────────────────────────────────────────
+volumes:
+  postgres_data:
+  caddy_data:
+  caddy_config:
+
+# ── Networks ───────────────────────────────────────────────────────────────
+networks:
+  backend:
+    # postgres ↔ server ↔ worker — isolated from the internet (internal)
+    internal: true
+  frontend:
+    # caddy → server only
+  egress:
+    # worker → internet (Tron RPC: TronGrid mainnet / Nile testnet). NOT internal.
+    # postgres is NOT attached here — it stays internet-isolated on backend.

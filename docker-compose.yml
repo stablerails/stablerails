@@ -1,0 +1,107 @@
+services:
+  # ── PostgreSQL ────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: stablerails
+      POSTGRES_PASSWORD: stablerails_dev
+      POSTGRES_DB: stablerails
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U stablerails -d stablerails"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  # ── HTTP server ───────────────────────────────────────────────────────────
+  # SECURITY: no `env_file` here on purpose. Server and worker are watch-only
+  # (CLAUDE.md "Server↛signer boundary") and must NEVER receive key material:
+  # STABLERAILS_ENCRYPTED_SEED, STABLERAILS_MAIN_WALLET and STABLERAILS_ADMIN_KEY stay on
+  # the operator's machine only. Each service lists the exact vars it needs;
+  # `${VAR}` values are interpolated by compose from the local .env file.
+  server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # SECURITY: explicit env only (no env_file) — server is watch-only and must
+    # never receive key material (seed / main wallet / admin key stay local).
+    environment:
+      DATABASE_URL: "postgresql://stablerails:stablerails_dev@postgres:5432/stablerails"
+      NODE_ENV: "${NODE_ENV:-production}"
+      STABLERAILS_ENV: "${STABLERAILS_ENV:-production}"
+      HOST: "0.0.0.0"
+      PORT: "3000"
+      PUBLIC_BASE_URL: "${PUBLIC_BASE_URL:-http://localhost:3000}"
+      LOG_LEVEL: "${LOG_LEVEL:-info}"
+      # USDT contract override (testnet runs); empty = mainnet default.
+      # Server needs it for building unsigned sweep transfers (routes/sweeps.ts).
+      TRON_USDT_CONTRACT: "${TRON_USDT_CONTRACT:-}"
+      # Webhook-secret encryption at rest (optional; empty = plaintext storage)
+      STABLERAILS_DATA_KEY: "${STABLERAILS_DATA_KEY:-}"
+      # Boot-time kill-switches (optional; empty = not paused)
+      STABLERAILS_PAUSE_INVOICES: "${STABLERAILS_PAUSE_INVOICES:-}"
+      STABLERAILS_PAUSE_WATCHER: "${STABLERAILS_PAUSE_WATCHER:-}"
+      STABLERAILS_PAUSE_WEBHOOKS: "${STABLERAILS_PAUSE_WEBHOOKS:-}"
+      # Demo page (dev only — keep ENABLE_DEMO off in production)
+      ENABLE_DEMO: "${ENABLE_DEMO:-}"
+      DEMO_MERCHANT_KEY: "${DEMO_MERCHANT_KEY:-}"
+      DEMO_EVENT_ID: "${DEMO_EVENT_ID:-}"
+      # Prometheus /metrics endpoint (empty = endpoint disabled)
+      METRICS_TOKEN: "${METRICS_TOKEN:-}"
+      # Fiat→USDT rate override in micro-USDT (empty = 1:1 default)
+      USDT_RATE_MICRO: "${USDT_RATE_MICRO:-}"
+    ports:
+      - "127.0.0.1:3000:3000"
+    command: ["server"]
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:3000/login"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  # ── Block watcher + webhook delivery ──────────────────────────────────────
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      server:
+        condition: service_healthy
+    # SECURITY: explicit env only (no env_file) — see the note on `server` above.
+    environment:
+      DATABASE_URL: "postgresql://stablerails:stablerails_dev@postgres:5432/stablerails"
+      NODE_ENV: "${NODE_ENV:-production}"
+      STABLERAILS_ENV: "${STABLERAILS_ENV:-production}"
+      LOG_LEVEL: "${LOG_LEVEL:-info}"
+      # Fail fast unless operators provide two distinct same-network endpoints.
+      # Do not mix mainnet and Nile/testnet RPC URLs.
+      TRON_RPC_PRIMARY_URL: "${TRON_RPC_PRIMARY_URL:-}"
+      TRON_RPC_PRIMARY_API_KEY: "${TRON_RPC_PRIMARY_API_KEY:-}"
+      TRON_RPC_SECONDARY_URL: "${TRON_RPC_SECONDARY_URL:-}"
+      TRON_RPC_SECONDARY_API_KEY: "${TRON_RPC_SECONDARY_API_KEY:-}"
+      # USDT contract override (testnet runs); empty = mainnet default
+      TRON_USDT_CONTRACT: "${TRON_USDT_CONTRACT:-}"
+      # Testnet-only single-transfer-provider relaxation (fail-closed startup guard)
+      WATCHER_TESTNET_SINGLE_TRANSFER_PROVIDER: "${WATCHER_TESTNET_SINGLE_TRANSFER_PROVIDER:-}"
+      # Optional poll tuning (ms); empty = built-in defaults
+      WATCHER_POLL_INTERVAL_MS: "${WATCHER_POLL_INTERVAL_MS:-}"
+      WEBHOOK_POLL_INTERVAL_MS: "${WEBHOOK_POLL_INTERVAL_MS:-}"
+      # Webhook-secret encryption at rest — worker decrypts for delivery
+      # signing; MUST match the server's key (optional; empty = plaintext)
+      STABLERAILS_DATA_KEY: "${STABLERAILS_DATA_KEY:-}"
+      # Boot-time kill-switches (optional; empty = not paused)
+      STABLERAILS_PAUSE_WATCHER: "${STABLERAILS_PAUSE_WATCHER:-}"
+      STABLERAILS_PAUSE_WEBHOOKS: "${STABLERAILS_PAUSE_WEBHOOKS:-}"
+    command: ["worker"]
+
+volumes:
+  postgres_data:

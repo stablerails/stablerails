@@ -1,0 +1,56 @@
+# Stablerails production Caddyfile
+#
+# Domain is injected via the DOMAIN environment variable (set in docker-compose.prod.yml).
+# Default: pay.example.com
+#
+# Transport/proxy hardening headers only.
+# App-level CSP is already handled by @fastify/helmet — do NOT duplicate here.
+
+{$DOMAIN:pay.example.com} {
+    # ── TLS: automatic HTTPS via Let's Encrypt (ACME HTTP-01 challenge) ───────
+    # Caddy handles certificate provisioning and renewal automatically.
+    # Ensure ports 80 and 443 are open and the domain A record points at this box
+    # before first start.
+
+    # ── Reverse proxy to the server container ─────────────────────────────────
+    reverse_proxy server:3000 {
+        # Pass the real client IP through
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+
+        # Active health check — Caddy will stop routing to unhealthy upstreams
+        health_uri /login
+        health_interval 15s
+        health_timeout 5s
+    }
+
+    # ── Transport-level hardening headers ─────────────────────────────────────
+    # These complement (not replace) the app's @fastify/helmet headers.
+    header {
+        # Strict-Transport-Security: force HTTPS for 1 year, include subdomains
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+
+        # Prevent MIME sniffing
+        X-Content-Type-Options "nosniff"
+
+        # Clickjacking protection
+        X-Frame-Options "DENY"
+
+        # Referrer policy — don't leak path to third-party requests
+        Referrer-Policy "strict-origin-when-cross-origin"
+
+        # Remove Caddy's Server header
+        -Server
+    }
+
+    # ── Logging ───────────────────────────────────────────────────────────────
+    log {
+        output stderr
+        format json
+        level INFO
+    }
+}
+
+# HTTP → HTTPS redirect is automatic in Caddy when a domain block uses TLS.
+# No explicit redirect block needed.

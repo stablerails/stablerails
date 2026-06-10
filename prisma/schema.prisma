@@ -1,0 +1,271 @@
+// Stablerails — Prisma schema
+// Provider: PostgreSQL via DATABASE_URL
+// Money fields: String decimal (integer micro-USDT, 6 decimals)
+// DO NOT run `prisma migrate` against a live DB here — generate client only.
+// Migrations run at deploy via `prisma migrate deploy`.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ── Enums ────────────────────────────────────────────────────────────────────
+
+enum EventStatus {
+  active
+  archived
+}
+
+enum InvoiceStatus {
+  pending
+  payment_detected
+  paid
+  underpaid
+  overpaid
+  expired
+  canceled
+  overdue
+}
+
+enum Network {
+  TRON
+}
+
+enum PaymentStatus {
+  detected
+  confirmed
+  orphaned
+}
+
+enum ApiKeyScope {
+  admin
+  merchant
+  readonly
+}
+
+enum WebhookDeliveryStatus {
+  pending
+  delivered
+  failed
+  dead
+}
+
+enum InvoiceIdempotencyState {
+  processing
+  completed
+}
+
+enum SweepIntentStatus {
+  prepared
+  partially_broadcast
+  broadcast
+  confirmed
+  failed
+}
+
+// ── Models ───────────────────────────────────────────────────────────────────
+
+model Event {
+  id                 String      @id @default(cuid())
+  name               String
+  status             EventStatus @default(active)
+  mainWalletAddress  String
+  derivationAccount  Int         @unique
+  xpubAccount        String
+  nextInvoiceIndex   Int         @default(0)
+  // Multi-merchant tenancy: owner tenant of this event. Invoices/sweeps inherit
+  // tenancy through their event. null = legacy "default tenant".
+  merchantId         String?
+  createdAt          DateTime    @default(now())
+
+  invoices         Invoice[]
+  webhookEndpoints WebhookEndpoint[]
+  sweepIntents     SweepIntent[]
+  apiKeys          ApiKey[]
+
+  @@index([merchantId])
+}
+
+model Invoice {
+  id              String        @id @default(cuid())
+  eventId         String
+  status          InvoiceStatus @default(pending)
+  priceFiat       String
+  fiatCurrency    String
+  amountUsdt      String
+  amountReceived  String        @default("0.000000")
+  rateLockedAt    DateTime
+  network         Network       @default(TRON)
+  depositAddress  String        @unique
+  derivationIndex Int
+  expiresAt       DateTime
+  metadata        Json?
+  createdAt       DateTime      @default(now())
+  paidAt          DateTime?
+
+  event    Event     @relation(fields: [eventId], references: [id], onDelete: Restrict)
+  payments Payment[]
+
+  @@unique([eventId, derivationIndex])
+  @@index([eventId, status])
+  // TODO: GIN index on metadata in migration — `CREATE INDEX invoice_metadata_gin ON "Invoice" USING GIN (metadata);`
+}
+
+model Payment {
+  id           String        @id @default(cuid())
+  invoiceId    String
+  txHash       String
+  logIndex     Int
+  network      Network
+  fromAddress  String
+  amountUsdt   String
+  blockNumber  BigInt
+  blockHash    String
+  status       PaymentStatus @default(detected)
+  detectedAt   DateTime      @default(now())
+  confirmedAt  DateTime?
+
+  // NO confirmations column — derived at read time from ChainCursor.lastSolidBlock
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
+
+  @@unique([network, txHash, logIndex])
+}
+
+model ApiKey {
+  id         String      @id @default(cuid())
+  label      String
+  hashedKey  String      @unique
+  prefix     String
+  scope      ApiKeyScope
+  eventId    String?
+  // Multi-merchant tenancy: tenant this key is confined to (merchant/readonly
+  // scopes). null = legacy single-tenant key → sees only null-tenant resources.
+  // Ignored for admin keys (admin sees everything).
+  merchantId String?
+  createdAt  DateTime    @default(now())
+  revokedAt  DateTime?
+
+  event Event? @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  invoiceIdempotency InvoiceIdempotency[]
+
+  @@index([eventId])
+}
+
+model InvoiceIdempotency {
+  id                  String                   @id @default(cuid())
+  apiKeyId            String?
+  scopeKey            String
+  idempotencyKey      String
+  requestHash         String
+  state               InvoiceIdempotencyState @default(completed)
+  statusCode          Int?
+  responseBody        Json?
+  expiresAt           DateTime
+  processingExpiresAt DateTime?
+  createdAt           DateTime                 @default(now())
+  updatedAt           DateTime                 @updatedAt
+
+  apiKey ApiKey? @relation(fields: [apiKeyId], references: [id], onDelete: SetNull)
+
+  @@unique([scopeKey, idempotencyKey])
+  @@index([expiresAt])
+  @@index([state, processingExpiresAt])
+}
+
+model WebhookEndpoint {
+  id        String    @id @default(cuid())
+  eventId   String?
+  url       String
+  secret    String
+  active    Boolean   @default(true)
+  createdAt DateTime  @default(now())
+
+  event     Event?            @relation(fields: [eventId], references: [id])
+  deliveries WebhookDelivery[]
+}
+
+model WebhookDelivery {
+  id            String                @id @default(cuid())
+  endpointId    String
+  eventType     String
+  invoiceId     String?
+  payload       Json
+  eventUid      String                @unique
+  version       Int
+  attempts      Int                   @default(0)
+  status        WebhookDeliveryStatus @default(pending)
+  nextAttemptAt DateTime
+  lastError     String?
+  claimToken    String?
+  claimedAt     DateTime?
+  claimExpiresAt DateTime?
+  createdAt     DateTime              @default(now())
+  deliveredAt   DateTime?
+
+  endpoint WebhookEndpoint @relation(fields: [endpointId], references: [id])
+
+  // Version is PER-(invoiceId, endpointId): each endpoint has its own independent
+  // monotonic counter computed by maxVersionForInvoiceEndpoint(invoiceId, endpointId, tx)+1
+  // inside the invoice row-lock (SELECT ... FOR UPDATE). This prevents P2002
+  // collisions when >=2 endpoints are registered for an event (C-1 fix).
+  @@unique([invoiceId, endpointId, version])
+  @@index([status, nextAttemptAt, claimExpiresAt])
+  @@index([claimToken])
+}
+
+model ChainCursor {
+  network          Network  @id
+  lastScannedBlock BigInt
+  lastSolidBlock   BigInt
+  updatedAt        DateTime @updatedAt
+}
+
+model Operator {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+
+  loginTokens LoginToken[]
+}
+
+// Magic-link login token (single-use, 15-minute TTL).
+// SECURITY: only the SHA-256 hash of the 256-bit random token is stored —
+// the raw token exists only in the URL printed by `stablerails init` /
+// `stablerails operator login-link`. Consumption is an atomic guarded UPDATE
+// (usedAt IS NULL AND expiresAt > now) so a token can never be replayed.
+model LoginToken {
+  id         String    @id @default(cuid())
+  tokenHash  String    @unique
+  operatorId String
+  expiresAt  DateTime
+  usedAt     DateTime?
+  createdAt  DateTime  @default(now())
+
+  operator Operator @relation(fields: [operatorId], references: [id], onDelete: Cascade)
+
+  @@index([expiresAt])
+}
+
+model SweepIntent {
+  id          String            @id @default(cuid())
+  eventId     String
+  status      SweepIntentStatus @default(prepared)
+  items       Json
+  destination String
+  createdAt   DateTime          @default(now())
+  executedAt  DateTime?
+
+  event Event @relation(fields: [eventId], references: [id])
+}
+
+model KillSwitch {
+  area      String   @id
+  paused    Boolean  @default(false)
+  updatedAt DateTime @updatedAt
+}

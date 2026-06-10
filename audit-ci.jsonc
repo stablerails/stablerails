@@ -1,0 +1,17 @@
+{
+  "$schema": "https://github.com/IBM/audit-ci/raw/main/docs/schema.json",
+  // Fail CI on any LOW-or-higher advisory that is not explicitly allowlisted.
+  "low": true,
+  // Reviewed advisories — allowlisted, not ignored:
+  //
+  // GHSA-848j-6mx2-7j84 — "Elliptic Uses a Cryptographic Primitive with a Risky
+  // Implementation" (elliptic <= 6.6.1). Reaches us only as a transitive
+  // dependency of tronweb (tronweb -> ethers v5 -> @ethersproject/signing-key
+  // -> elliptic). This code is on the SIGNER path only (local operator machine,
+  // TTY passphrase gate) and is never imported by src/server/** or
+  // src/workers/** (enforced via ESLint import/no-restricted-paths).
+  // Reviewed and accepted; tracked for removal via the tronweb upgrade.
+  // npm audit also flags the dependent @ethersproject/* packages for the same
+  // root advisory — allowlisting the GHSA covers the whole transitive chain.
+  "allowlist": ["GHSA-848j-6mx2-7j84"]
+}

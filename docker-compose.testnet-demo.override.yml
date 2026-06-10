@@ -1,0 +1,45 @@
+# Testnet demo override for docker-compose.prod.yml
+#
+# Usage:
+#   docker compose -f docker-compose.prod.yml -f docker-compose.testnet-demo.override.yml up -d
+#
+# Purpose:
+#   - Overrides STABLERAILS_ENV from "production" to "testnet" so that:
+#       a) The /demo route mounts (app.ts gates on !isProductionRuntime())
+#       b) The requireLocalDemoHost prehandler is relaxed (demo.ts checks STABLERAILS_ENV===testnet)
+#   - Sets ENABLE_DEMO=1 on the server container
+#   - WATCHER_TESTNET_SINGLE_TRANSFER_PROVIDER=1 tells the watcher to use
+#     primary-only for transfer scans (Nile has one TronGrid V1 endpoint)
+#   - Solid-block dual-check is NOT relaxed — both RPC URLs must be Nile hosts
+#     for the guard to pass.
+#
+# Security: this file NEVER goes to mainnet. The testnet guard in
+# testnetRelaxation.ts will throw at worker startup if the contract or RPC URLs
+# look like mainnet.
+
+services:
+  server:
+    environment:
+      STABLERAILS_ENV: testnet
+      NODE_ENV: development
+      ENABLE_DEMO: "1"
+
+  worker:
+    environment:
+      STABLERAILS_ENV: testnet
+      NODE_ENV: development
+      WATCHER_TESTNET_SINGLE_TRANSFER_PROVIDER: "1"
+    # NOTE: docker-compose.prod.yml ALREADY attaches the worker to the non-internal
+    # `egress` network — the watcher needs outbound internet to reach the Tron RPC
+    # (TronGrid mainnet AND Nile testnet). This block re-declares it only for clarity;
+    # Compose merges network lists, so it's a no-op confirmation. postgres stays on
+    # `backend` (internal: true) and remains internet-isolated. Do NOT remove egress
+    # from the base prod compose thinking this override provides it — the base needs it.
+    networks:
+      - backend
+      - egress
+
+# Re-declare egress so this override is valid standalone; the base prod compose
+# defines the same (non-internal) network. Not internal — outbound only, no inbound.
+networks:
+  egress: {}
