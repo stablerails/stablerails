@@ -133,6 +133,10 @@ function renderDiagram(): string {
 function renderLanding(scriptNonce?: string, styleNonce?: string, demoEnabled?: boolean): string {
   const styleNonceAttr = styleNonce ? ` nonce="${styleNonce}"` : "";
   const scriptNonceAttr = scriptNonce ? ` nonce="${scriptNonce}"` : "";
+  // Local demo when this instance has it enabled; otherwise the public
+  // testnet playground (play money, real payment flow).
+  const demoHref = demoEnabled ? "/demo" : "https://testnet.stablerails.org/demo";
+  const demoRel = demoEnabled ? "" : ` rel="noopener"`;
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -443,8 +447,8 @@ function renderLanding(scriptNonce?: string, styleNonce?: string, demoEnabled?: 
     <div class="nav-links">
       <a href="/docs">docs</a>
       <a href="/agents.md">agents</a>
-      <a href="https://github.com/stablerails/stablerails" rel="noopener">github</a>${demoEnabled ? `
-      <a href="/demo">live demo</a>` : ""}
+      <a href="https://github.com/stablerails/stablerails" rel="noopener">github</a>
+      <a href="${demoHref}"${demoRel}>live demo</a>
       <a class="nav-login" href="/login">operator login</a>
     </div>
   </nav>
@@ -459,7 +463,7 @@ function renderLanding(scriptNonce?: string, styleNonce?: string, demoEnabled?: 
     <p class="tagline">Self-hosted, non-custodial stablecoin payments. Software you run. Rails you own.</p>
     <p class="tagline-tags"><b>0% fees</b>, <b>no KYC</b>, <b>agent-friendly</b>. Your keys never touch the server.</p>
     ${renderCommandBlock("hero", true)}
-    <p class="hero-alt">Or hand it to your agent: <a href="/agents.md">/agents.md &rarr;</a></p>
+    <p class="hero-alt">Hand it to your agent: <a href="/agents.md">/agents.md &rarr;</a> &middot; or pay in the <a href="${demoHref}"${demoRel}>live demo &rarr;</a></p>
     <p class="hero-fine">No signup, nothing to cancel. You only pay network gas. Not for you? Delete the directory.</p>
   </section>
 
@@ -600,7 +604,7 @@ function renderLanding(scriptNonce?: string, styleNonce?: string, demoEnabled?: 
     </div>
     <div class="sec-body">
       ${renderCommandBlock("end")}
-      <p class="hero-alt">Or hand it to your agent: <a href="/agents.md">/agents.md &rarr;</a></p>
+      <p class="hero-alt">Hand it to your agent: <a href="/agents.md">/agents.md &rarr;</a> &middot; or pay in the <a href="${demoHref}"${demoRel}>live demo &rarr;</a></p>
     </div>
   </section>
 
