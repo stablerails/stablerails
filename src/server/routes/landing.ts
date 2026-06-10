@@ -445,6 +445,7 @@ function renderLanding(scriptNonce?: string, styleNonce?: string, demoEnabled?: 
       stablerails
     </a>
     <div class="nav-links">
+      <a href="/setup">setup</a>
       <a href="/docs">docs</a>
       <a href="/agents.md">agents</a>
       <a href="https://github.com/stablerails/stablerails" rel="noopener">github</a>

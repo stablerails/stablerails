@@ -22,6 +22,7 @@
     "audit:ci": "audit-ci --config audit-ci.jsonc"
   },
   "bin": {
+    "stablerails": "dist/cli/index.js",
     "stablerails-mcp": "dist/mcp/bin.js"
   },
   "files": [
