@@ -40,51 +40,63 @@ void esc;
 const INIT_COMMAND = "npx stablerails init";
 
 interface Feature {
-  code: string;
   name: string;
   text: string;
+  /** Double-width cell with a real product artifact rendered in mono. */
+  wide?: boolean;
+  snip?: string;
 }
 
 const FEATURES: Feature[] = [
-  { code: "F-01", name: "Per-invoice HD addresses", text: "A fresh deposit address for every invoice, derived from your xpub. No address reuse." },
-  { code: "F-02", name: "Hosted checkout + payment links", text: "A ready checkout page with QR, countdown and live status. Share a link, get paid." },
-  { code: "F-03", name: "HMAC-signed webhooks", text: "Signed delivery with retries. Verify the signature, trust the event." },
-  { code: "F-04", name: "Multi-merchant tenancy", text: "One instance, many stores. Scoped API keys per merchant." },
-  { code: "F-05", name: "Operator dashboard", text: "Invoices, payments, sweeps and CSV export behind an operator login." },
-  { code: "F-06", name: "Kill-switch", text: "Pause invoicing, watching or webhooks at runtime — per area, no restart." },
-  { code: "F-07", name: "Prometheus metrics", text: "First-class /metrics endpoint for your own monitoring. Your data stays yours." },
-  { code: "F-08", name: "Docker deploy", text: "Server, worker and Postgres in one compose file. Up in minutes on a $5 box." },
+  { name: "HMAC-signed webhooks", text: "Signed delivery with retries. Verify the signature, trust the event.", wide: true, snip: "X-Stablerails-Signature: sha256=9f2c41d0&hellip;" },
+  { name: "Per-invoice HD addresses", text: "A fresh deposit address for every invoice, derived from your xpub. No address reuse." },
+  { name: "Hosted checkout + payment links", text: "A ready checkout page with QR, countdown and live status. Share a link, get paid." },
+  { name: "Multi-merchant tenancy", text: "One instance, many stores. Scoped API keys per merchant." },
+  { name: "Operator dashboard", text: "Invoices, payments, sweeps and CSV export behind an operator login." },
+  { name: "Kill-switch", text: "Pause invoicing, watching or webhooks at runtime. Per area, no restart." },
+  { name: "Prometheus metrics", text: "First-class /metrics endpoint for your own monitoring. Your data stays yours." },
+  { name: "Docker deploy", text: "Server, worker and Postgres in one compose file. Up in minutes on a $5 box.", wide: true, snip: "$ docker compose up -d" },
 ];
 
 function renderFeatures(): string {
   return FEATURES.map(
     (f) => `
-      <div class="feat">
-        <span class="feat-code">${f.code}</span>
+      <div class="feat${f.wide ? " feat-wide" : ""}">
         <h3>${f.name}</h3>
-        <p>${f.text}</p>
+        <p>${f.text}</p>${f.snip ? `
+        <code class="feat-snip">${f.snip}</code>` : ""}
       </div>`,
   ).join("");
 }
 
-/** Terminal-framed copyable command block. */
-function renderCommandBlock(idSuffix: string): string {
+/** Lines mirrored from the real \`stablerails init\` output (src/cli/commands/init.ts). */
+const INIT_TRANSCRIPT = [
+  "[1/6] Checking database connectivity... OK",
+  "[2/6] Operator account... created",
+  "[4/6] Payment event... created",
+  "[6/6] Magic login link... minted (single-use, 15 min)",
+].join("\n");
+
+/** Terminal-framed copyable command block. Copy button is revealed by JS (dead control otherwise). */
+function renderCommandBlock(idSuffix: string, withOutput = false): string {
   return `
       <div class="term" role="group" aria-label="Install command">
         <div class="term-bar">
-          <span class="term-dot"></span><span class="term-dot"></span><span class="term-dot"></span>
-          <span class="term-title">get started &middot; 30 seconds</span>
+          <span class="term-title">stablerails init</span>
         </div>
         <div class="term-body">
           <code class="term-cmd"><span class="term-prompt">$</span> ${INIT_COMMAND}</code>
-          <button class="copy-btn" id="copy-${idSuffix}" type="button" data-copy="${INIT_COMMAND}" aria-label="Copy command to clipboard">copy</button>
-        </div>
+          <button class="copy-btn" id="copy-${idSuffix}" type="button" data-copy="${INIT_COMMAND}" aria-label="Copy command to clipboard" hidden>copy</button>
+        </div>${withOutput ? `
+        <pre class="term-out">${INIT_TRANSCRIPT}</pre>` : ""}
       </div>`;
 }
 
-/** Inline SVG flow diagram: payer → per-invoice address → (passphrase gate) → your wallet. */
+/** Inline SVG flow diagram: payer → per-invoice address → (passphrase gate) → your wallet.
+ *  Wrapped in a horizontal scroll container so labels keep a legible minimum size on phones. */
 function renderDiagram(): string {
   return `
+      <div class="diagram-scroll">
       <svg class="diagram" viewBox="0 0 720 230" role="img" aria-label="Payment flow: payer sends to a per-invoice address; the watch-only server observes the chain; funds sweep to your wallet only after a local passphrase">
         <!-- payer -->
         <rect class="d-box" x="8" y="40" width="120" height="56" rx="6"/>
@@ -111,7 +123,8 @@ function renderDiagram(): string {
         <rect class="d-box d-box-dim" x="198" y="158" width="220" height="56" rx="6"/>
         <text class="d-label" x="308" y="182" text-anchor="middle">WATCH-ONLY SERVER</text>
         <text class="d-sub" x="308" y="200" text-anchor="middle">observes the chain &middot; holds no keys</text>
-      </svg>`;
+      </svg>
+      </div>`;
 }
 
 function renderLanding(scriptNonce?: string, styleNonce?: string, demoEnabled?: boolean): string {
@@ -123,17 +136,19 @@ function renderLanding(scriptNonce?: string, styleNonce?: string, demoEnabled?: 
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="description" content="Stablerails — free, open-source, self-hosted, non-custodial stablecoin payment software. 0% fees, no KYC, agent-friendly. Your keys never touch the server." />
-  <title>Stablerails — self-hosted, non-custodial stablecoin payments</title>
+  <meta name="theme-color" content="#0a0e0c" />
+  <meta name="description" content="Stablerails: free, open-source, self-hosted, non-custodial stablecoin payment software. 0% fees, no KYC, agent-friendly. Your keys never touch the server." />
+  <title>Stablerails &middot; self-hosted, non-custodial stablecoin payments</title>
   <style${styleNonceAttr}>
     :root {
+      color-scheme: dark;
       --ink: #0a0e0c;
       --panel: #0e1411;
       --line: rgba(236, 233, 226, .08);
       --line-strong: rgba(236, 233, 226, .16);
       --text: #ece9e2;
       --muted: #8e988f;
-      --dim: #5c665e;
+      --dim: #79847c;
       --acc: #26A17B;
       --acc-bright: #3ddc97;
       --acc-soft: rgba(38, 161, 123, .12);
@@ -146,9 +161,8 @@ function renderLanding(scriptNonce?: string, styleNonce?: string, demoEnabled?: 
       font-family: var(--sans);
       background: var(--ink);
       background-image:
-        radial-gradient(ellipse 80% 42% at 50% -8%, rgba(38, 161, 123, .13) 0%, transparent 62%),
-        radial-gradient(rgba(236, 233, 226, .035) 1px, transparent 1px);
-      background-size: auto, 28px 28px;
+        radial-gradient(ellipse 80% 42% at 50% -8%, rgba(38, 161, 123, .07) 0%, transparent 62%),
+        repeating-linear-gradient(to bottom, transparent 0 27px, rgba(236, 233, 226, .025) 27px 28px);
       color: var(--text);
       line-height: 1.6;
       -webkit-font-smoothing: antialiased;
@@ -156,7 +170,8 @@ function renderLanding(scriptNonce?: string, styleNonce?: string, demoEnabled?: 
     ::selection { background: var(--acc); color: #04130d; }
     a { color: var(--acc-bright); text-decoration: none; }
     a:hover { text-decoration: underline; text-underline-offset: 3px; }
-    a:focus-visible, button:focus-visible { outline: 2px solid var(--acc-bright); outline-offset: 2px; border-radius: 2px; }
+    a:focus-visible, button:focus-visible { outline: 2px solid var(--acc-bright); outline-offset: 2px; }
+    a, button { -webkit-tap-highlight-color: transparent; }
     .wrap { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
 
     /* ── top nav ─────────────────────────────────────────── */
@@ -169,9 +184,9 @@ function renderLanding(scriptNonce?: string, styleNonce?: string, demoEnabled?: 
     .nav-mark:hover { text-decoration: none; }
     .nav-mark svg { color: var(--acc); }
     .nav-links { margin-left: auto; display: flex; align-items: center; gap: 1.4rem; flex-wrap: wrap; }
-    .nav-links a { color: var(--muted); }
+    .nav-links a { color: var(--muted); transition: color .15s ease; display: inline-block; padding: .55rem 0; margin: -.55rem 0; }
     .nav-links a:hover { color: var(--text); text-decoration: none; }
-    .nav-login { border: 1px solid var(--line-strong); padding: .35rem .8rem; border-radius: 6px; }
+    .nav-login { border: 1px solid var(--line-strong); padding: .35rem .8rem; border-radius: 6px; transition: color .15s ease, border-color .15s ease; }
     .nav-login:hover { border-color: var(--acc); color: var(--acc-bright); }
 
     /* ── hero ────────────────────────────────────────────── */
@@ -185,11 +200,10 @@ function renderLanding(scriptNonce?: string, styleNonce?: string, demoEnabled?: 
       padding: .35rem .85rem; border-radius: 100px;
       margin-bottom: 2.2rem;
     }
-    .badge-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--acc-bright); box-shadow: 0 0 6px rgba(61, 220, 151, .9); }
     .wordmark {
       font-family: var(--mono); font-weight: 700;
       font-size: clamp(2.8rem, 9vw, 5.4rem);
-      letter-spacing: -.045em; line-height: 1;
+      letter-spacing: -.04em; line-height: 1;
       margin-bottom: 1.4rem; color: var(--text);
     }
     .wordmark .rails { color: var(--acc-bright); }
@@ -203,7 +217,7 @@ function renderLanding(scriptNonce?: string, styleNonce?: string, demoEnabled?: 
     .tagline {
       font-size: clamp(1.05rem, 2.6vw, 1.35rem);
       color: var(--text); max-width: 620px; line-height: 1.5;
-      margin-bottom: .8rem;
+      margin-bottom: .8rem; text-wrap: balance;
     }
     .tagline-tags {
       font-family: var(--mono); font-size: .82rem; color: var(--muted);
@@ -222,33 +236,42 @@ function renderLanding(scriptNonce?: string, styleNonce?: string, demoEnabled?: 
       padding: .55rem .9rem; border-bottom: 1px solid var(--line);
       background: rgba(236, 233, 226, .02);
     }
-    .term-dot { width: 9px; height: 9px; border-radius: 50%; background: rgba(236, 233, 226, .14); }
-    .term-title { margin-left: .6rem; font-family: var(--mono); font-size: .66rem; letter-spacing: .12em; text-transform: uppercase; color: var(--dim); }
+    .term-title { font-family: var(--mono); font-size: .7rem; letter-spacing: .12em; text-transform: uppercase; color: var(--dim); }
     .term-body { display: flex; align-items: center; gap: 1rem; padding: 1rem 1.1rem; }
     .term-cmd { font-family: var(--mono); font-size: .98rem; color: var(--text); flex: 1; overflow-x: auto; white-space: nowrap; }
     .term-prompt { color: var(--acc-bright); margin-right: .5rem; }
+    .term-out {
+      font-family: var(--mono); font-size: .78rem; color: var(--dim);
+      padding: 0 1.1rem 1rem; line-height: 1.7; white-space: pre; overflow-x: auto;
+    }
     .copy-btn {
-      font-family: var(--mono); font-size: .72rem; font-weight: 700;
+      font-family: var(--mono); font-size: .7rem; font-weight: 700;
       letter-spacing: .1em; text-transform: uppercase;
       color: var(--acc-bright); background: var(--acc-soft);
       border: 1px solid rgba(38, 161, 123, .4); border-radius: 6px;
       padding: .45rem .9rem; cursor: pointer; flex-shrink: 0;
-      transition: background .15s, color .15s, border-color .15s;
+      min-width: 5.2rem; text-align: center; user-select: none;
+      transition: background .15s ease, color .15s ease, border-color .15s ease,
+                  transform 160ms cubic-bezier(.23, 1, .32, 1);
     }
-    .copy-btn:hover { background: rgba(38, 161, 123, .25); }
+    @media (hover: hover) and (pointer: fine) {
+      .copy-btn:hover { background: rgba(38, 161, 123, .25); }
+    }
+    .copy-btn:active { transform: scale(.97); }
     .copy-btn.copied { color: #04130d; background: var(--acc-bright); border-color: var(--acc-bright); }
     .hero-alt {
       margin-top: 1.4rem; font-family: var(--mono); font-size: .85rem;
     }
-    .hero-alt a { color: var(--text); border-bottom: 1px solid var(--line-strong); padding-bottom: .1rem; }
+    .hero-alt a { color: var(--text); border-bottom: 1px solid var(--line-strong); padding-bottom: .1rem; transition: color .15s ease, border-color .15s ease; }
     .hero-alt a:hover { color: var(--acc-bright); border-color: var(--acc); text-decoration: none; }
     .hero-fine { margin-top: 1.6rem; font-size: .8rem; color: var(--dim); max-width: 540px; }
-    .hero > * { animation: rise .6s ease both; }
+    .hero > * { animation: rise .55s cubic-bezier(.16, 1, .3, 1) both; }
     .hero > *:nth-child(2) { animation-delay: .07s; }
     .hero > *:nth-child(3) { animation-delay: .14s; }
     .hero > *:nth-child(4) { animation-delay: .21s; }
     .hero > *:nth-child(5) { animation-delay: .28s; }
     .hero > *:nth-child(6) { animation-delay: .35s; }
+    .hero > *:nth-child(7) { animation-delay: .42s; }
     @keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
     @media (prefers-reduced-motion: reduce) {
       .hero > *, .cursor { animation: none !important; }
@@ -259,20 +282,27 @@ function renderLanding(scriptNonce?: string, styleNonce?: string, demoEnabled?: 
     .sec { border-top: 1px solid var(--line); padding: 4.5rem 0; display: grid; grid-template-columns: 260px 1fr; gap: 3rem; }
     .sec-rail { font-family: var(--mono); }
     .sec-no { display: block; font-size: .72rem; letter-spacing: .18em; color: var(--acc); margin-bottom: .9rem; }
-    .sec-rail h2 { font-family: var(--mono); font-size: 1.35rem; font-weight: 700; letter-spacing: -.02em; line-height: 1.3; color: var(--text); }
+    .sec-rail h2 { font-family: var(--mono); font-size: 1.35rem; font-weight: 700; letter-spacing: -.02em; line-height: 1.3; color: var(--text); text-wrap: balance; }
     .sec-body p { color: var(--muted); max-width: 62ch; }
+    .plain, .legal { text-wrap: pretty; }
 
     /* how it works */
-    .steps { display: grid; gap: 1.6rem; margin-bottom: 2.4rem; }
+    .steps { display: grid; gap: 1.6rem; margin-bottom: 1.6rem; }
     .step { display: flex; gap: 1.1rem; align-items: flex-start; }
     .step-no {
-      font-family: var(--mono); font-size: .78rem; font-weight: 700; color: var(--acc-bright);
-      border: 1px solid rgba(38, 161, 123, .4); border-radius: 6px;
-      padding: .28rem .55rem; flex-shrink: 0; background: var(--acc-soft);
+      font-family: var(--mono); font-size: 1.05rem; font-weight: 700; color: var(--acc-bright);
+      flex-shrink: 0; min-width: 1.6rem;
     }
-    .step h3 { font-size: 1rem; font-weight: 700; margin-bottom: .25rem; }
-    .step p { font-size: .9rem; color: var(--muted); max-width: 56ch; }
-    .diagram { width: 100%; height: auto; margin: .6rem 0 1.8rem; font-family: var(--mono); }
+    .step h3 { font-size: 1rem; font-weight: 700; margin-bottom: .25rem; text-wrap: balance; }
+    .step h3 em { font-style: normal; color: var(--acc-bright); }
+    .step p { font-size: .9rem; color: var(--muted); max-width: 56ch; text-wrap: pretty; }
+    .timeline {
+      font-family: var(--mono); font-size: .78rem; letter-spacing: .04em; color: var(--muted);
+      border: 1px solid var(--line-strong); border-radius: 6px;
+      padding: .55rem .9rem; display: inline-block; margin: 0 0 1.8rem;
+    }
+    .diagram-scroll { overflow-x: auto; margin: .6rem 0 1.8rem; }
+    .diagram { display: block; width: 100%; min-width: 600px; height: auto; margin: 0; font-family: var(--mono); }
     .d-box { fill: var(--panel); stroke: var(--line-strong); }
     .d-box-acc { stroke: var(--acc); }
     .d-box-dim { stroke: var(--line); stroke-dasharray: 4 4; }
@@ -286,10 +316,11 @@ function renderLanding(scriptNonce?: string, styleNonce?: string, demoEnabled?: 
     .d-gate-label { fill: var(--acc-bright); font-size: 9px; letter-spacing: .12em; font-family: var(--mono); }
     .callout {
       font-family: var(--mono); font-size: 1.05rem; font-weight: 700;
-      color: var(--text); border-left: 3px solid var(--acc);
-      background: var(--acc-soft); padding: .9rem 1.2rem; border-radius: 0 8px 8px 0;
+      color: var(--text); border: 1px solid rgba(38, 161, 123, .4);
+      background: var(--acc-soft); padding: .9rem 1.2rem; border-radius: 8px;
       max-width: 480px;
     }
+    .callout::before { content: "▸ " / ""; color: var(--acc-bright); }
 
     /* security ledger */
     .sec-security .sec-headline {
@@ -297,11 +328,11 @@ function renderLanding(scriptNonce?: string, styleNonce?: string, demoEnabled?: 
       line-height: 1.25; color: var(--text); margin-bottom: 2.2rem; max-width: 22ch;
     }
     .sec-security .sec-headline em { font-style: normal; color: var(--acc-bright); }
-    .ledger { display: grid; grid-template-columns: 1fr 1fr; border-top: 1px solid var(--line); }
+    .ledger { display: grid; grid-template-columns: 1fr 1fr; column-gap: 2rem; border-top: 1px solid var(--line); }
     .ledger-row { border-bottom: 1px solid var(--line); padding: 1.2rem 1.2rem 1.2rem 0; }
+    .ledger-row:nth-child(even) { border-left: 1px solid var(--line); padding-left: 1.4rem; }
     .ledger-row dt { font-family: var(--mono); font-size: .82rem; font-weight: 700; color: var(--text); margin-bottom: .35rem; }
-    .ledger-row dt::before { content: "▸ "; color: var(--acc-bright); }
-    .ledger-row dd { font-size: .86rem; color: var(--muted); }
+    .ledger-row dd { font-size: .86rem; color: var(--muted); text-wrap: pretty; }
 
     /* agent block */
     .agent-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-top: 2rem; }
@@ -315,12 +346,19 @@ function renderLanding(scriptNonce?: string, styleNonce?: string, demoEnabled?: 
     /* features */
     .feat-grid { display: grid; grid-template-columns: repeat(4, 1fr); border-left: 1px solid var(--line); border-top: 1px solid var(--line); }
     .feat { border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: 1.2rem; }
-    .feat-code { font-family: var(--mono); font-size: .64rem; letter-spacing: .14em; color: var(--acc); display: block; margin-bottom: .6rem; }
+    .feat-wide { grid-column: span 2; }
     .feat h3 { font-size: .88rem; font-weight: 700; margin-bottom: .3rem; }
-    .feat p { font-size: .78rem; color: var(--dim); line-height: 1.5; }
+    .feat p { font-size: .85rem; color: var(--dim); line-height: 1.5; }
+    .feat-snip {
+      display: block; margin-top: .6rem;
+      font-family: var(--mono); font-size: .72rem; color: var(--acc-bright);
+      background: rgba(236, 233, 226, .03); border: 1px solid var(--line);
+      border-radius: 6px; padding: .45rem .7rem;
+      overflow-x: auto; white-space: nowrap;
+    }
     .roadmap {
       margin-top: 1.6rem; display: inline-block;
-      font-family: var(--mono); font-size: .74rem; letter-spacing: .08em;
+      font-family: var(--mono); font-size: .75rem; letter-spacing: .08em;
       color: var(--muted); border: 1px dashed var(--line-strong);
       border-radius: 100px; padding: .45rem 1.1rem;
     }
@@ -339,19 +377,21 @@ function renderLanding(scriptNonce?: string, styleNonce?: string, demoEnabled?: 
     /* footer */
     .footer { border-top: 1px solid var(--line); padding: 2.4rem 0 3rem; }
     .footer-links { display: flex; flex-wrap: wrap; gap: 1.6rem; font-family: var(--mono); font-size: .78rem; margin-bottom: 1.4rem; }
-    .footer-links a { color: var(--muted); }
+    .footer-links a { color: var(--muted); transition: color .15s ease; display: inline-block; padding: .55rem 0; margin: -.55rem 0; }
     .footer-links a:hover { color: var(--acc-bright); text-decoration: none; }
-    .footer-fine { font-size: .72rem; color: var(--dim); display: flex; flex-wrap: wrap; gap: .4rem 1.4rem; align-items: center; }
-    .footer-fine .no3p { color: var(--acc); font-family: var(--mono); }
+    .footer-fine { font-size: .75rem; color: var(--dim); display: flex; flex-wrap: wrap; gap: .4rem 1.4rem; align-items: center; }
+    .footer-fine .no3p { display: block; width: 100%; font-size: .78rem; color: var(--acc-bright); font-family: var(--mono); margin-bottom: .5rem; }
 
     @media (max-width: 880px) {
       .sec { grid-template-columns: 1fr; gap: 1.6rem; padding: 3.2rem 0; }
       .ledger, .agent-grid { grid-template-columns: 1fr; }
+      .ledger-row:nth-child(even) { border-left: 0; padding-left: 0; }
       .feat-grid { grid-template-columns: repeat(2, 1fr); }
       .hero { padding: 4rem 0 3.5rem; }
     }
     @media (max-width: 520px) {
       .feat-grid { grid-template-columns: 1fr; }
+      .feat-wide { grid-column: auto; }
       .term-body { flex-direction: column; align-items: stretch; }
       .nav-links { gap: .9rem; }
     }
@@ -381,45 +421,46 @@ function renderLanding(scriptNonce?: string, styleNonce?: string, demoEnabled?: 
 
   <!-- ── 1 · HERO ──────────────────────────────────────────── -->
   <section class="hero">
-    <div class="badge"><span class="badge-dot"></span>open source &middot; AGPL-3.0 &middot; self-hosted</div>
+    <div class="badge">AGPL-3.0 &middot; self-hosted</div>
     <h1 class="wordmark">stable<span class="rails">rails</span><span class="cursor" aria-hidden="true"></span></h1>
-    <p class="tagline">Self-hosted, non-custodial stablecoin payments. Software you run — rails you own.</p>
-    <p class="tagline-tags"><b>0% fees</b> &middot; <b>no KYC</b> &middot; <b>agent-friendly</b> &middot; your keys never touch the server</p>
-    ${renderCommandBlock("hero")}
-    <p class="hero-alt">Or hand it to your AI agent <a href="/agents.md">/agents.md &rarr;</a></p>
-    <p class="hero-fine">Free and open-source (AGPL-3.0). You only ever pay network gas &mdash; and that goes to the blockchain, not to us.</p>
+    <p class="tagline">Self-hosted, non-custodial stablecoin payments. Software you run. Rails you own.</p>
+    <p class="tagline-tags"><b>0% fees</b>, <b>no KYC</b>, <b>agent-friendly</b>. Your keys never touch the server.</p>
+    ${renderCommandBlock("hero", true)}
+    <p class="hero-alt">Or hand it to your agent: <a href="/agents.md">/agents.md &rarr;</a></p>
+    <p class="hero-fine">Free and open-source (AGPL-3.0). No signup, no account, nothing to cancel. You only ever pay network gas, and that goes to the blockchain, not to us. If it&#39;s not for you, delete the directory.</p>
   </section>
 
   <!-- ── 2 · HOW IT WORKS ─────────────────────────────────── -->
   <section class="sec" id="how-it-works">
     <div class="sec-rail">
-      <span class="sec-no">01 / FLOW</span>
+      <span class="sec-no">01</span>
       <h2>How it works</h2>
     </div>
     <div class="sec-body">
       <div class="steps">
         <div class="step">
-          <span class="step-no">01</span>
+          <span class="step-no">1.</span>
           <div>
             <h3>Run the watch-only server</h3>
-            <p>It serves your checkout and verifies payments on-chain. It holds no keys &mdash; there is nothing on it worth stealing.</p>
+            <p>It serves your checkout and verifies payments on-chain. It holds no keys; there is nothing on it worth stealing. Misconfigure it and the worst you get is a stalled invoice. Keys and funds are never at stake on the server.</p>
           </div>
         </div>
         <div class="step">
-          <span class="step-no">02</span>
+          <span class="step-no">2.</span>
           <div>
             <h3>Every invoice gets its own deposit address</h3>
-            <p>Fresh HD-derived addresses per invoice. When a payment lands at a solid block, your webhook fires.</p>
+            <p>Fresh HD-derived addresses per invoice. When the payment is confirmed at a solid block (about a minute on Tron), your webhook fires. Never 0-conf.</p>
           </div>
         </div>
         <div class="step">
-          <span class="step-no">03</span>
+          <span class="step-no">3.</span>
           <div>
-            <h3>Funds sweep to YOUR wallet &mdash; signed locally</h3>
+            <h3>Funds sweep to <em>your</em> wallet, signed locally</h3>
             <p>The sweep is signed on your machine, behind a passphrase you type at your own terminal. The server only ever sees the finished, signed transaction.</p>
           </div>
         </div>
       </div>
+      <p class="timeline">init &rarr; first invoice: ~5 min &middot; payment &rarr; confirmed: ~1 min &middot; sweep: whenever you decide</p>
       ${renderDiagram()}
       <p class="callout">Keys never leave your machine.</p>
     </div>
@@ -428,7 +469,7 @@ function renderLanding(scriptNonce?: string, styleNonce?: string, demoEnabled?: 
   <!-- ── 3 · SECURITY MODEL ───────────────────────────────── -->
   <section class="sec sec-security" id="security">
     <div class="sec-rail">
-      <span class="sec-no">02 / THREAT MODEL</span>
+      <span class="sec-no">02</span>
       <h2>Security model</h2>
     </div>
     <div class="sec-body">
@@ -436,11 +477,11 @@ function renderLanding(scriptNonce?: string, styleNonce?: string, demoEnabled?: 
       <dl class="ledger">
         <div class="ledger-row">
           <dt>Watch-only server</dt>
-          <dd>The server holds zero private keys. It can see payments arrive; it cannot spend a single token.</dd>
+          <dd>Zero private keys on the server. Worst case, a full server compromise: the attacker reads invoice metadata. They cannot move a single token, and they cannot redirect a sweep.</dd>
         </div>
         <div class="ledger-row">
           <dt>Signing is local, human, deliberate</dt>
-          <dd>Sweeps are signed only via the local CLI, behind a human passphrase &mdash; optional Touch ID. No passphrase, no movement.</dd>
+          <dd>Sweeps are signed only via the local CLI, behind a human passphrase, with optional Touch ID. No passphrase, no movement.</dd>
         </div>
         <div class="ledger-row">
           <dt>Destination pinned locally</dt>
@@ -448,15 +489,23 @@ function renderLanding(scriptNonce?: string, styleNonce?: string, demoEnabled?: 
         </div>
         <div class="ledger-row">
           <dt>Two RPCs must agree</dt>
-          <dd>A payment counts only when two independent RPC providers confirm it at a solid block. Never 0-conf.</dd>
+          <dd>Both providers must independently read the same transfer from on-chain receipts at a solid block. If they disagree, nothing is credited and the check retries next tick. The failure mode is a payment showing up seconds late. Never a false &#39;paid&#39;.</dd>
         </div>
         <div class="ledger-row">
           <dt>AI agents get readonly keys</dt>
-          <dd>Agents can run your store &mdash; create invoices, read events, watch sweeps. They physically cannot move your money.</dd>
+          <dd>Agents can run your store: create invoices, read events, watch sweeps. They physically cannot move your money.</dd>
         </div>
         <div class="ledger-row">
           <dt>100% open source</dt>
-          <dd>Every line is public, including the signer. Don&#39;t trust our claims &mdash; audit them.</dd>
+          <dd>Every line is public, including the signer. 1,000+ automated tests run fully offline: no network, no API keys, no accounts. Don&#39;t trust our claims. Clone, run the suite, audit.</dd>
+        </div>
+        <div class="ledger-row">
+          <dt>Survives the project</dt>
+          <dd>AGPL-3.0 is irrevocable. If this repo vanished tomorrow, your instance keeps running and anyone may fork it. You depend on the code on your disk, not on us.</dd>
+        </div>
+        <div class="ledger-row">
+          <dt>Zero exit cost</dt>
+          <dd>Your funds are already in your wallet. Your data is plain Postgres on your machine. Stop the containers and walk away. There is no account to close.</dd>
         </div>
       </dl>
     </div>
@@ -465,11 +514,11 @@ function renderLanding(scriptNonce?: string, styleNonce?: string, demoEnabled?: 
   <!-- ── 4 · AGENT-FRIENDLY ───────────────────────────────── -->
   <section class="sec" id="agents">
     <div class="sec-rail">
-      <span class="sec-no">03 / AGENTIC WEB</span>
+      <span class="sec-no">03</span>
       <h2>Built for the agentic web</h2>
     </div>
     <div class="sec-body">
-      <p>MCP server out of the box. Machine-readable <a href="/llms.txt">/llms.txt</a>. JSON output everywhere. An AI agent can install, configure and operate the whole stack &mdash; <span class="agent-except">except the one thing it must never do: touch your passphrase.</span></p>
+      <p>MCP server out of the box. Machine-readable <a href="/llms.txt">/llms.txt</a>. JSON output everywhere. An AI agent can install, configure and operate the whole stack, <span class="agent-except">except the one thing it must never do: touch your passphrase.</span></p>
       <div class="agent-grid">
         <div class="agent-path">
           <h3>Path A &middot; you type</h3>
@@ -478,7 +527,7 @@ function renderLanding(scriptNonce?: string, styleNonce?: string, demoEnabled?: 
         <div class="agent-path">
           <h3>Path B &middot; your agent reads</h3>
           <a class="agent-link" href="/agents.md">/agents.md &rarr;</a>
-          <p class="agent-note">Hand this file to any capable agent. It contains everything needed to install, configure and run an instance &mdash; and a clear boundary around what it may never ask of you.</p>
+          <p class="agent-note">Hand this file to any capable agent. It contains everything needed to install, configure and run an instance, and a hard boundary: it never asks for your passphrase. Run it on a readonly key, and even a fully misled agent can create invoices, not move funds.</p>
         </div>
       </div>
     </div>
@@ -487,37 +536,49 @@ function renderLanding(scriptNonce?: string, styleNonce?: string, demoEnabled?: 
   <!-- ── 5 · FEATURES ─────────────────────────────────────── -->
   <section class="sec" id="features">
     <div class="sec-rail">
-      <span class="sec-no">04 / SHIPPED</span>
+      <span class="sec-no">04</span>
       <h2>What&#39;s in the box</h2>
     </div>
     <div class="sec-body">
       <div class="feat-grid">${renderFeatures()}
       </div>
-      <span class="roadmap"><b>Tron (USDT) today</b> &mdash; Polygon &middot; Ethereum &middot; USDC next</span>
+      <span class="roadmap"><b>Tron (USDT) shipped today</b> &middot; Polygon, Ethereum, USDC tracked in the open &rarr; <a href="https://github.com/stablerails/stablerails/issues" rel="noopener">github issues</a></span>
     </div>
   </section>
 
   <!-- ── 6 · HONESTY ──────────────────────────────────────── -->
   <section class="sec" id="honesty">
     <div class="sec-rail">
-      <span class="sec-no">05 / PLAIN TRUTH</span>
+      <span class="sec-no">05</span>
       <h2>No KYC.<br>Not anonymous.</h2>
     </div>
     <div class="sec-body">
-      <p class="plain"><strong>USDT on Tron is a transparent ledger, and the token itself is centrally managed</strong> &mdash; the issuer can freeze addresses. We collect no payer emails and log no payer IPs, but on-chain privacy is limited by the asset itself. We&#39;d rather tell you that here than in the fine print.</p>
+      <p class="plain"><strong>USDT on Tron is a transparent ledger, and the token itself is centrally managed:</strong> the issuer can freeze addresses. We collect no payer emails and log no payer IPs, but on-chain privacy is limited by the asset itself. We&#39;d rather tell you that here than in the fine print. The mitigation is in your hands too: you sweep to your own wallet on your own schedule, so funds never have to linger at deposit addresses.</p>
     </div>
   </section>
 
   <!-- ── 7 · JUST SOFTWARE ────────────────────────────────── -->
   <section class="sec" id="legal">
     <div class="sec-rail">
-      <span class="sec-no">06 / LEGAL</span>
+      <span class="sec-no">06</span>
       <h2>Just software</h2>
     </div>
     <div class="sec-body">
       <div class="legal">
-        <strong>Stablerails is software, not a payment service.</strong> Each operator runs their own instance and controls their own keys and funds. The project never holds, transmits, or has access to anyone&#39;s money. <a href="/docs">Read the docs &rarr;</a>
+        <strong>Stablerails is software, not a payment service.</strong> Each operator runs their own instance and controls their own keys and funds. The project never holds, transmits, or has access to anyone&#39;s money. <a href="/terms">Terms</a> &middot; <a href="/docs">Read the docs &rarr;</a>
       </div>
+    </div>
+  </section>
+
+  <!-- ── 8 · CLOSING CTA ──────────────────────────────────── -->
+  <section class="sec" id="start">
+    <div class="sec-rail">
+      <span class="sec-no">07</span>
+      <h2>Run your own rails</h2>
+    </div>
+    <div class="sec-body">
+      ${renderCommandBlock("end")}
+      <p class="hero-alt">Or hand it to your agent: <a href="/agents.md">/agents.md &rarr;</a></p>
     </div>
   </section>
 
@@ -535,7 +596,7 @@ function renderLanding(scriptNonce?: string, styleNonce?: string, demoEnabled?: 
       <a href="/login">operator login</a>
     </div>
     <div class="footer-fine">
-      <span class="no3p">This page loads nothing from third parties &mdash; no fonts, no analytics, no trackers.</span>
+      <span class="no3p">This page loads nothing from third parties: no fonts, no analytics, no trackers. Open your network tab and verify.</span>
       <span>&copy; Stablerails contributors &middot; AGPL-3.0</span>
     </div>
   </div>
@@ -543,16 +604,19 @@ function renderLanding(scriptNonce?: string, styleNonce?: string, demoEnabled?: 
 
 <script${scriptNonceAttr}>
   // Copy-to-clipboard for command blocks. Bound via addEventListener —
-  // CSP script-src-attr blocks inline handlers.
+  // CSP script-src-attr blocks inline handlers. Buttons ship hidden and are
+  // revealed here, so a no-JS visitor never sees a dead control.
   document.querySelectorAll(".copy-btn").forEach(function (btn) {
+    var timer;
+    btn.hidden = false;
     btn.addEventListener("click", function () {
       var text = btn.getAttribute("data-copy") || "";
       navigator.clipboard.writeText(text).then(function () {
-        var prev = btn.textContent;
         btn.textContent = "copied";
         btn.classList.add("copied");
-        setTimeout(function () {
-          btn.textContent = prev;
+        clearTimeout(timer);
+        timer = setTimeout(function () {
+          btn.textContent = "copy";
           btn.classList.remove("copied");
         }, 1600);
       }).catch(function () { /* clipboard unavailable — no-op */ });
