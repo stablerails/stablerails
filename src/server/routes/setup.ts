@@ -22,14 +22,14 @@ const DOCKER_CMDS = [
   "docker compose up --build",
 ].join("\n");
 
-const AGENT_PROMPT =
+export const AGENT_PROMPT =
   "Read https://stablerails.org/agents.md and set up a Stablerails instance for me. " +
   "Before you begin, ask me: (1) testnet or mainnet? (2) local machine or a VPS? " +
   "(3) which Tron address should swept funds go to? " +
   "Then install it, run init, and give me the one-time dashboard login link. " +
   "Use a readonly API key for yourself. Never ask me for a seed passphrase.";
 
-const MCP_CONFIG = `{
+export const MCP_CONFIG = `{
   "mcpServers": {
     "stablerails": {
       "command": "stablerails-mcp",
@@ -59,7 +59,7 @@ const SOURCE_STEPS: SourceStep[] = [
   { cmd: "npm run dev & npm run worker", note: "server + chain watcher" },
 ];
 
-function copyBlock(id: string, text: string, display?: string): string {
+export function copyBlock(id: string, text: string, display?: string): string {
   return `
       <div class="cmd" role="group">
         <pre class="cmd-text">${display ?? text}</pre>
@@ -165,7 +165,7 @@ function renderSetup(styleNonce?: string, scriptNonce?: string): string {
     <a class="nav-mark" href="/">stable<span class="rails">rails</span></a>
     <span>
       <a href="/docs">docs</a> &nbsp;&middot;&nbsp;
-      <a href="/agents.md">agents</a> &nbsp;&middot;&nbsp;
+      <a href="/agents">agents</a> &nbsp;&middot;&nbsp;
       <a href="${REPO_URL}" rel="noopener">github</a>
     </span>
   </nav>

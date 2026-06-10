@@ -501,7 +501,7 @@ function renderLanding(scriptNonce?: string, styleNonce?: string, demoEnabled?: 
     <div class="nav-links">
       <a href="/setup">setup</a>
       <a href="/docs">docs</a>
-      <a href="/agents.md">agents</a>
+      <a href="/agents">agents</a>
       <a href="https://github.com/stablerails/stablerails" rel="noopener">github</a>
       <a href="${demoHref}"${demoRel}>live demo</a>
       <a class="nav-login" href="/login">operator login</a>
@@ -525,7 +525,7 @@ function renderLanding(scriptNonce?: string, styleNonce?: string, demoEnabled?: 
     <p class="tagline">Self-hosted, non-custodial stablecoin payments. Software you run. Rails you own.</p>
     <p class="tagline-tags"><b>0% fees</b>, <b>no KYC</b>, <b>agent-friendly</b>. Your keys never touch the server.</p>
     ${renderCommandBlock("hero", true)}
-    <p class="hero-alt">Hand it to your agent: <a href="/agents.md">/agents.md &rarr;</a> &middot; or pay in the <a href="${demoHref}"${demoRel}>live demo &rarr;</a></p>
+    <p class="hero-alt">Hand it to your agent: <a href="/agents">/agents &rarr;</a> &middot; or pay in the <a href="${demoHref}"${demoRel}>live demo &rarr;</a></p>
     <p class="hero-fine">No signup, nothing to cancel. You only pay network gas. Not for you? Delete the directory.</p>
   </section>
 
@@ -681,7 +681,7 @@ function renderLanding(scriptNonce?: string, styleNonce?: string, demoEnabled?: 
     </div>
     <div class="sec-body">
       ${renderCommandBlock("end")}
-      <p class="hero-alt">Hand it to your agent: <a href="/agents.md">/agents.md &rarr;</a> &middot; or pay in the <a href="${demoHref}"${demoRel}>live demo &rarr;</a></p>
+      <p class="hero-alt">Hand it to your agent: <a href="/agents">/agents &rarr;</a> &middot; or pay in the <a href="${demoHref}"${demoRel}>live demo &rarr;</a></p>
     </div>
   </section>
 
@@ -693,7 +693,7 @@ function renderLanding(scriptNonce?: string, styleNonce?: string, demoEnabled?: 
     <div class="footer-links">
       <a href="https://github.com/stablerails/stablerails" rel="noopener">github</a>
       <a href="/docs">docs</a>
-      <a href="/agents.md">agents.md</a>
+      <a href="/agents">agents</a>
       <a href="/llms.txt">llms.txt</a>
       <a href="/terms">terms</a>
       <a href="/login">operator login</a>
