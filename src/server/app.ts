@@ -40,6 +40,7 @@ import { registerCreateLinkRoutes } from "./routes/createLink.js";
 import { registerLandingRoutes } from "./routes/landing.js";
 import { registerMetricsRoutes } from "./routes/metrics.js";
 import { registerDocsRoutes } from "./routes/docs.js";
+import { registerSetupRoutes } from "./routes/setup.js";
 import { registerTermsRoutes } from "./routes/terms.js";
 import { registerLlmsRoutes } from "./routes/llms.js";
 import { registerOpsStatusRoutes } from "./routes/opsStatus.js";
@@ -303,6 +304,7 @@ export function buildApp(deps: AppDeps): FastifyInstance {
   void registerLandingRoutes(app);
   void registerMetricsRoutes(app, { invoiceRepo });
   void registerDocsRoutes(app);
+  void registerSetupRoutes(app);
   void registerTermsRoutes(app);
   registerLlmsRoutes(app);
 
