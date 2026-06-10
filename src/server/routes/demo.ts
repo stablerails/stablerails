@@ -149,11 +149,11 @@ export async function registerDemoRoutes(
       // Premium dark fintech design — "Vault" aesthetic matching the checkout page.
       // System fonts only (no CDN), fully self-contained, mobile-first, CSP-safe.
       const html = `<!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Stablerails Demo — Тестовый заказ</title>
+  <title>Stablerails Demo — Test order</title>
   <style${styleNonceAttr}>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -410,20 +410,20 @@ export async function registerDemoRoutes(
   <!-- Form body -->
   <div class="form-body">
     <div class="form-header">
-      <h1 class="form-title">Тестовый заказ</h1>
-      <p class="form-subtitle">Демо-стенд &mdash; только для разработки</p>
+      <h1 class="form-title">Test order</h1>
+      <p class="form-subtitle">Demo playground &mdash; testnet, play money</p>
     </div>
 
     ${warningHtml}
 
     <form id="order-form" method="POST" action="/demo/order">
       <div class="field">
-        <label for="product">Товар / Описание</label>
+        <label for="product">Product / Description</label>
         <input type="text" id="product" name="product" value="Test Product" required maxlength="120" />
       </div>
 
       <div class="field">
-        <label for="amount">Сумма (USD)</label>
+        <label for="amount">Amount (USD)</label>
         <div class="amount-field-wrap">
           <span class="amount-prefix">$</span>
           <input type="number" id="amount" name="amount" value="1.00"
@@ -436,7 +436,7 @@ export async function registerDemoRoutes(
           <circle cx="12" cy="12" r="10"/>
           <path d="M12 8v8M8 12h8"/>
         </svg>
-        Оплатить через USDT
+        Pay with USDT
       </button>
     </form>
 
@@ -444,7 +444,7 @@ export async function registerDemoRoutes(
       <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
       </svg>
-      Защищённое соединение &middot; USDT / TRC-20
+      Secure connection &middot; USDT / TRC-20
     </div>
   </div>
 
@@ -454,7 +454,7 @@ export async function registerDemoRoutes(
   // Disable the submit button on click to prevent double-submit.
   document.getElementById('order-form').addEventListener('submit', function() {
     var btn = document.getElementById('submit-btn');
-    if (btn) { btn.disabled = true; btn.textContent = 'Перенаправление…'; }
+    if (btn) { btn.disabled = true; btn.textContent = 'Redirecting…'; }
   });
 </script>
 </body>

@@ -89,7 +89,15 @@ function renderCommandBlock(idSuffix: string, withOutput = false): string {
           <code class="term-cmd"><span class="term-prompt">$</span> <span class="type">${INIT_COMMAND}</span></code>
           <button class="copy-btn" id="copy-${idSuffix}" type="button" data-copy="${INIT_COMMAND}" aria-label="Copy command to clipboard" hidden>copy</button>
         </div>${withOutput ? `
-        <pre class="term-out">${INIT_TRANSCRIPT_LINES.map((l) => `<span class="term-line">${l}</span>`).join("")}</pre>` : ""}
+        <pre class="term-out">${INIT_TRANSCRIPT_LINES.map((l) => `<span class="term-line">${l}</span>`).join("")}</pre>
+        <template id="demo-tx">
+          <span class="term-line">{"data":{"id":"inv_9f2c41d0","status":"pending","amountUsdt":"27.310000","payAddress":"TWd4&hellip;n5pQ"}}</span>
+          <span class="term-line">[watcher] solid block 83 412 907 &middot; two RPCs agree</span>
+          <span class="term-line">status: payment_detected</span>
+          <span class="term-line">receipt confirmed by BOTH providers &rarr; status: <span class="ok">paid</span></span>
+          <span class="term-line">[webhook] 200 &middot; X-Stablerails-Signature: sha256=9f2c&hellip;</span>
+          <span class="term-line term-human">$ sweep requires your passphrase, at your terminal. that part stays human.</span>
+        </template>` : ""}
       </div>`;
 }
 
@@ -123,7 +131,7 @@ function renderDiagram(): string {
         <line class="d-dash" x1="308" y1="96" x2="308" y2="156"/>
         <rect class="d-box d-box-dim" x="198" y="158" width="220" height="56" rx="6"/>
         <text class="d-label" x="308" y="182" text-anchor="middle">WATCH-ONLY SERVER</text>
-        <text class="d-sub" x="308" y="200" text-anchor="middle">observes the chain &middot; holds no keys</text>
+        <text class="d-sub" x="308" y="200" text-anchor="middle">your VPS &middot; checkout + API + dashboard &middot; no keys</text>
         <!-- payment pulse: travels payer → address → (gate) → wallet -->
         <circle class="d-pulse" cx="128" cy="68" r="4"/>
       </svg>
@@ -163,13 +171,13 @@ function renderLanding(scriptNonce?: string, styleNonce?: string, demoEnabled?: 
       --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
     }
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    html { scroll-behavior: smooth; }
+    html { scroll-behavior: smooth; overflow-x: clip; }
     body {
       font-family: var(--sans);
       background: var(--ink);
       background-image:
         radial-gradient(ellipse 80% 42% at 50% -8%, rgba(38, 161, 123, .07) 0%, transparent 62%),
-        repeating-linear-gradient(to bottom, transparent 0 27px, rgba(236, 233, 226, .025) 27px 28px);
+        repeating-linear-gradient(to bottom, transparent 0 27px, rgba(236, 233, 226, .02) 27px 28px);
       color: var(--text);
       line-height: 1.6;
       -webkit-font-smoothing: antialiased;
@@ -197,7 +205,7 @@ function renderLanding(scriptNonce?: string, styleNonce?: string, demoEnabled?: 
     .nav-login:hover { border-color: var(--acc); color: var(--acc-bright); }
 
     /* ── hero ────────────────────────────────────────────── */
-    .hero { padding: 6rem 0 5rem; }
+    .hero { padding: 7rem 0 5.5rem; }
     .badge {
       display: inline-flex; align-items: center; gap: .55rem;
       font-family: var(--mono); font-size: .68rem; font-weight: 600;
@@ -207,12 +215,29 @@ function renderLanding(scriptNonce?: string, styleNonce?: string, demoEnabled?: 
       padding: .35rem .85rem; border-radius: 100px;
       margin-bottom: 2.2rem;
     }
+    .railhead { position: relative; margin-bottom: 2.2rem; }
     .wordmark {
       font-family: var(--mono); font-weight: 700;
       font-size: clamp(2.8rem, 9vw, 5.4rem);
       letter-spacing: -.04em; line-height: 1;
-      margin-bottom: 1.4rem; color: var(--text);
+      margin-bottom: .55em; color: var(--text);
     }
+    /* full-bleed rails under the wordmark: two hairline rails + ties */
+    .rail-svg {
+      position: absolute; left: calc(50% - 50vw); width: 100vw; height: 28px;
+      bottom: -14px; display: block; pointer-events: none;
+    }
+    .rail-line {
+      stroke: var(--line-strong); stroke-width: 1;
+      stroke-dasharray: 1; stroke-dashoffset: 0;
+      animation: rail-draw 1.1s cubic-bezier(.16, 1, .3, 1) .25s both;
+    }
+    .rail-line-2 { animation-delay: .4s; }
+    .rail-tie {
+      stroke: rgba(236, 233, 226, .07); stroke-width: 16;
+      stroke-dasharray: .004 .024;
+    }
+    @keyframes rail-draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
     .wordmark .rails { color: var(--acc-bright); }
     .cursor {
       display: inline-block; width: .55em; height: .92em;
@@ -234,7 +259,7 @@ function renderLanding(scriptNonce?: string, styleNonce?: string, demoEnabled?: 
 
     /* terminal command block */
     .term {
-      max-width: 560px; border: 1px solid var(--line-strong); border-radius: 10px;
+      max-width: 560px; border: 1px solid var(--line-strong); border-radius: 12px;
       background: var(--panel); overflow: hidden;
       box-shadow: 0 18px 50px rgba(0, 0, 0, .45), 0 0 0 1px rgba(38, 161, 123, .07);
     }
@@ -251,7 +276,11 @@ function renderLanding(scriptNonce?: string, styleNonce?: string, demoEnabled?: 
       font-family: var(--mono); font-size: .78rem; color: var(--dim);
       padding: 0 1.1rem 1rem; line-height: 1.7; overflow-x: auto;
     }
-    .term-line { display: block; white-space: pre; }
+    .term-line { display: block; white-space: pre-wrap; word-break: break-all; }
+    .term-out .ok { color: var(--acc-bright); font-weight: 700; }
+    .term-out .term-human { color: var(--text); }
+    .term-out .term-hint { color: var(--acc); cursor: default; }
+    .term-out .term-cmdline { color: var(--text); }
     /* hero terminal: the command types itself, then output lines land one by one */
     .hero .type {
       display: inline-block; overflow: hidden; white-space: nowrap; vertical-align: bottom;
@@ -300,17 +329,38 @@ function renderLanding(scriptNonce?: string, styleNonce?: string, demoEnabled?: 
     }
     .js-reveal .sec.in { opacity: 1; transform: none; }
     @media (prefers-reduced-motion: reduce) {
-      .hero > *, .cursor, .hero .type, .hero .term-line, .d-gate { animation: none !important; }
+      .hero > *, .cursor, .hero .type, .hero .term-line, .d-gate, .rail-line { animation: none !important; }
       .hero .term-line { opacity: 1; }
       .d-pulse { display: none; }
       html { scroll-behavior: auto; }
     }
 
+    /* zero ledger: the totals row of everything we don't take */
+    .zeros {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.2rem;
+      border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);
+      padding: 2.6rem 0;
+    }
+    .zero-fig {
+      display: block; font-family: var(--mono); font-weight: 700; line-height: 1;
+      font-size: clamp(2.1rem, 4.6vw, 3.2rem); letter-spacing: -.03em; color: var(--text);
+      margin-bottom: .5rem;
+    }
+    .zero-cap { font-family: var(--mono); font-size: .75rem; letter-spacing: .06em; color: var(--muted); }
+    @media (max-width: 720px) { .zeros { grid-template-columns: repeat(2, 1fr); row-gap: 2rem; } }
+
+    /* "what you don't need" dotted-leader ledger */
+    .none-ledger { max-width: 640px; margin-bottom: 1.6rem; }
+    .none-row { display: flex; align-items: baseline; gap: .8rem; font-family: var(--mono); font-size: .85rem; padding: .5rem 0; }
+    .none-row dt { color: var(--muted); flex-shrink: 0; }
+    .none-row .dots { flex: 1; border-bottom: 1px dotted var(--line-strong); transform: translateY(-4px); }
+    .none-row dd { color: var(--acc-bright); text-align: right; }
+
     /* ── numbered editorial sections ─────────────────────── */
-    .sec { border-top: 1px solid var(--line); padding: 4.5rem 0; display: grid; grid-template-columns: 260px 1fr; gap: 3rem; }
+    .sec { border-top: 1px solid var(--line); padding: 6rem 0; display: grid; grid-template-columns: 260px 1fr; gap: 3.5rem; }
     .sec-rail { font-family: var(--mono); }
     .sec-no { display: block; font-size: .72rem; letter-spacing: .18em; color: var(--acc); margin-bottom: .9rem; }
-    .sec-rail h2 { font-family: var(--mono); font-size: 1.35rem; font-weight: 700; letter-spacing: -.02em; line-height: 1.3; color: var(--text); text-wrap: balance; }
+    .sec-rail h2 { font-family: var(--mono); font-size: 1.5rem; font-weight: 700; letter-spacing: -.02em; line-height: 1.3; color: var(--text); text-wrap: balance; }
     .sec-body p { color: var(--muted); max-width: 62ch; }
     .legal { text-wrap: pretty; }
 
@@ -368,14 +418,18 @@ function renderLanding(scriptNonce?: string, styleNonce?: string, demoEnabled?: 
     }
     .sec-security .sec-headline em { font-style: normal; color: var(--acc-bright); }
     .ledger { display: grid; grid-template-columns: 1fr 1fr; column-gap: 2rem; border-top: 1px solid var(--line); }
-    .ledger-row { border-bottom: 1px solid var(--line); padding: 1.2rem 1.2rem 1.2rem 0; }
+    .ledger-row { border-bottom: 1px solid var(--line); padding: 1.45rem 1.2rem 1.45rem 0; }
     .ledger-row:nth-child(even) { border-left: 1px solid var(--line); padding-left: 1.4rem; }
     .ledger-row dt { font-family: var(--mono); font-size: .82rem; font-weight: 700; color: var(--text); margin-bottom: .35rem; }
     .ledger-row dd { font-size: .86rem; color: var(--muted); text-wrap: pretty; }
 
     /* agent block */
     .agent-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-top: 2rem; }
-    .agent-path { border: 1px solid var(--line-strong); border-radius: 10px; padding: 1.4rem; background: var(--panel); }
+    .agent-path {
+      border: 1px solid var(--line); border-radius: 12px; padding: 1.6rem;
+      background: linear-gradient(180deg, rgba(236, 233, 226, .025), transparent 40%), var(--panel);
+      box-shadow: 0 10px 32px rgba(0, 0, 0, .28);
+    }
     .agent-path h3 { font-family: var(--mono); font-size: .78rem; letter-spacing: .14em; text-transform: uppercase; color: var(--dim); margin-bottom: 1rem; }
     .agent-path .term { max-width: none; box-shadow: none; }
     .agent-link { display: inline-block; font-family: var(--mono); font-size: .95rem; font-weight: 700; color: var(--acc-bright); margin-top: .4rem; }
@@ -384,7 +438,7 @@ function renderLanding(scriptNonce?: string, styleNonce?: string, demoEnabled?: 
 
     /* features */
     .feat-grid { display: grid; grid-template-columns: repeat(4, 1fr); border-left: 1px solid var(--line); border-top: 1px solid var(--line); }
-    .feat { border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: 1.2rem; }
+    .feat { border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: 1.5rem; }
     .feat-wide { grid-column: span 2; }
     .feat h3 { font-size: .88rem; font-weight: 700; margin-bottom: .3rem; }
     .feat p { font-size: .85rem; color: var(--dim); line-height: 1.5; }
@@ -420,7 +474,7 @@ function renderLanding(scriptNonce?: string, styleNonce?: string, demoEnabled?: 
     .footer-fine .no3p { display: block; width: 100%; font-size: .78rem; color: var(--acc-bright); font-family: var(--mono); margin-bottom: .5rem; }
 
     @media (max-width: 880px) {
-      .sec { grid-template-columns: 1fr; gap: 1.6rem; padding: 3.2rem 0; }
+      .sec { grid-template-columns: 1fr; gap: 1.8rem; padding: 4rem 0; }
       .ledger, .agent-grid { grid-template-columns: 1fr; }
       .ledger-row:nth-child(even) { border-left: 0; padding-left: 0; }
       .feat-grid { grid-template-columns: repeat(2, 1fr); }
@@ -460,12 +514,27 @@ function renderLanding(scriptNonce?: string, styleNonce?: string, demoEnabled?: 
   <!-- ── 1 · HERO ──────────────────────────────────────────── -->
   <section class="hero">
     <div class="badge">AGPL-3.0 &middot; self-hosted</div>
-    <h1 class="wordmark">stable<span class="rails">rails</span><span class="cursor" aria-hidden="true"></span></h1>
+    <div class="railhead">
+      <h1 class="wordmark">stable<span class="rails">rails</span><span class="cursor" aria-hidden="true"></span></h1>
+      <svg class="rail-svg" aria-hidden="true" focusable="false">
+        <line class="rail-tie" x1="0" y1="14" x2="100%" y2="14" pathLength="1"/>
+        <line class="rail-line" x1="0" y1="6" x2="100%" y2="6" pathLength="1"/>
+        <line class="rail-line rail-line-2" x1="0" y1="22" x2="100%" y2="22" pathLength="1"/>
+      </svg>
+    </div>
     <p class="tagline">Self-hosted, non-custodial stablecoin payments. Software you run. Rails you own.</p>
     <p class="tagline-tags"><b>0% fees</b>, <b>no KYC</b>, <b>agent-friendly</b>. Your keys never touch the server.</p>
     ${renderCommandBlock("hero", true)}
     <p class="hero-alt">Hand it to your agent: <a href="/agents.md">/agents.md &rarr;</a> &middot; or pay in the <a href="${demoHref}"${demoRel}>live demo &rarr;</a></p>
     <p class="hero-fine">No signup, nothing to cancel. You only pay network gas. Not for you? Delete the directory.</p>
+  </section>
+
+  <!-- ── ZERO LEDGER ──────────────────────────────────────── -->
+  <section class="zeros" aria-label="What this software does not take">
+    <div class="zero"><span class="zero-fig">0%</span><span class="zero-cap">fees, by code</span></div>
+    <div class="zero"><span class="zero-fig">0</span><span class="zero-cap">keys on the server</span></div>
+    <div class="zero"><span class="zero-fig">0</span><span class="zero-cap">third-party requests</span></div>
+    <div class="zero"><span class="zero-fig">0</span><span class="zero-cap">accounts to freeze</span></div>
   </section>
 
   <!-- ── 2 · HOW IT WORKS ─────────────────────────────────── -->
@@ -480,7 +549,7 @@ function renderLanding(scriptNonce?: string, styleNonce?: string, demoEnabled?: 
           <span class="step-no">1.</span>
           <div>
             <h3>Run the watch-only server</h3>
-            <p>It serves checkout and verifies payments on-chain. No keys on it: the worst misconfiguration is a stalled invoice, never lost funds.</p>
+            <p>Runs 24/7 on your own VPS (a $5 box is enough): hosted checkout, API, dashboard, chain watcher. No keys on it: the worst misconfiguration is a stalled invoice, never lost funds.</p>
           </div>
         </div>
         <div class="step">
@@ -591,8 +660,15 @@ function renderLanding(scriptNonce?: string, styleNonce?: string, demoEnabled?: 
       <h2>Just software</h2>
     </div>
     <div class="sec-body">
+      <dl class="none-ledger">
+        <div class="none-row"><dt>signup</dt><span class="dots"></span><dd>none</dd></div>
+        <div class="none-row"><dt>legal entity</dt><span class="dots"></span><dd>not required to run software</dd></div>
+        <div class="none-row"><dt>bank account</dt><span class="dots"></span><dd>not needed</dd></div>
+        <div class="none-row"><dt>approval</dt><span class="dots"></span><dd>no one to ask</dd></div>
+        <div class="none-row"><dt>our fee</dt><span class="dots"></span><dd>$0, there is no fee code path</dd></div>
+      </dl>
       <div class="legal">
-        <strong>Stablerails is software, not a payment service.</strong> Each operator runs their own instance and controls their own keys and funds. The project never holds, transmits, or has access to anyone&#39;s money. No KYC. No payer emails collected, no payer IPs logged. <a href="/terms">Terms</a> &middot; <a href="/docs">Read the docs &rarr;</a>
+        <strong>Stablerails is software, not a payment service.</strong> Each operator runs their own instance and controls their own keys and funds. The project never holds, transmits, or has access to anyone&#39;s money. No KYC. No payer emails collected, no payer IPs logged. Compliance with your local laws stays yours, the same as running your own web server. <a href="/terms">Terms</a> &middot; <a href="/docs">Read the docs &rarr;</a>
       </div>
     </div>
   </section>
@@ -649,6 +725,62 @@ function renderLanding(scriptNonce?: string, styleNonce?: string, demoEnabled?: 
       }).catch(function () { /* clipboard unavailable — no-op */ });
     });
   });
+
+  // Interactive hero demo: press ⏎ (or click/tap the terminal) and watch a
+  // payment land — every line mirrors the real envelope and the real
+  // two-RPC / solid-block language. Transcript ships in an inert <template>.
+  (function () {
+    var term = document.querySelector(".hero .term");
+    var out = document.querySelector(".hero .term-out");
+    var tpl = document.getElementById("demo-tx");
+    if (!term || !out || !tpl) return;
+    out.setAttribute("aria-live", "polite");
+    var reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    var hint = null;
+    var playing = false;
+    function addLine(text, cls) {
+      var el = document.createElement("span");
+      el.className = "term-line" + (cls ? " " + cls : "");
+      el.textContent = text;
+      out.appendChild(el);
+      return el;
+    }
+    function showHint(label) { hint = addLine(label, "term-hint"); }
+    function play() {
+      if (playing) return;
+      playing = true;
+      if (hint) { hint.remove(); hint = null; }
+      var cmd = addLine("$ ", "term-cmdline");
+      var demoCmd = "stablerails demo --watch";
+      var lines = Array.prototype.slice.call(tpl.content.querySelectorAll(".term-line"));
+      function emit(i) {
+        if (i >= lines.length) { showHint("\u23ce replay"); playing = false; return; }
+        out.appendChild(lines[i].cloneNode(true));
+        setTimeout(function () { emit(i + 1); }, reduce ? 0 : 650);
+      }
+      if (reduce) { cmd.textContent = "$ " + demoCmd; emit(0); return; }
+      var pos = 0;
+      var typer = setInterval(function () {
+        pos += 1;
+        cmd.textContent = "$ " + demoCmd.slice(0, pos);
+        if (pos >= demoCmd.length) {
+          clearInterval(typer);
+          setTimeout(function () { emit(0); }, 350);
+        }
+      }, 28);
+    }
+    setTimeout(function () { showHint("press \u23ce  watch a payment land"); }, reduce ? 400 : 3400);
+    document.addEventListener("keydown", function (e) {
+      if (e.key !== "Enter" || e.metaKey || e.ctrlKey || e.altKey) return;
+      var t = e.target;
+      if (t && t.closest && t.closest("button, a, input, textarea, select, summary")) return;
+      play();
+    });
+    term.addEventListener("click", function (e) {
+      if (e.target.closest("button, a")) return;
+      play();
+    });
+  })();
 
   // Scroll-reveal for sections. Gated behind .js-reveal so content is always
   // visible without JS; skipped entirely under prefers-reduced-motion.
