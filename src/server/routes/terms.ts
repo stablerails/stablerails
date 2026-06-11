@@ -15,6 +15,7 @@
  */
 
 import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
+import { siteNavHtml, SITE_NAV_CSS } from "./siteNav.js";
 
 const REPO_URL = "https://github.com/stablerails/stablerails";
 
@@ -30,11 +31,12 @@ function renderTerms(styleNonce?: string): string {
   <meta name="description" content="Terms of use for Stablerails — free, open-source, self-hosted stablecoin payment software.">
   <style${styleNonceAttr}>
     :root {
-      --ink: #0c0f0d;
-      --paper: #f6f5f1;
-      --line: #d8d6cf;
-      --mut: #6b6f6c;
-      --acc: #26a17b;
+      color-scheme: dark;
+      --ink: #ece9e2;
+      --paper: #0a0e0c;
+      --line: rgba(236, 233, 226, .12);
+      --mut: #8e988f;
+      --acc: #3ddc97;
     }
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -45,12 +47,11 @@ function renderTerms(styleNonce?: string): string {
     }
     .wrap { max-width: 760px; margin: 0 auto; padding: 0 24px; }
     header.wrap { padding-top: 28px; padding-bottom: 8px; }
-    .nav { display: flex; align-items: baseline; justify-content: space-between; border-bottom: 1px solid var(--line); padding-bottom: 16px; }
     a { color: inherit; text-decoration: none; border-bottom: 1px solid var(--line); }
     a:hover { border-bottom-color: var(--acc); color: var(--acc); }
-    .nav a { border-bottom: none; }
-    .nav-mark { font-weight: 700; }
-    .nav-mark .rails { color: var(--acc); }
+${SITE_NAV_CSS}
+    .snav-links a { border-bottom: none; }
+    .snav-mark { border-bottom: none; }
     main.wrap { padding-top: 40px; padding-bottom: 64px; }
     h1 { font-size: 26px; letter-spacing: -0.02em; margin-bottom: 6px; }
     .updated { color: var(--mut); font-size: 13px; margin-bottom: 36px; }
@@ -67,10 +68,7 @@ function renderTerms(styleNonce?: string): string {
 <body>
 
 <header class="wrap">
-  <nav class="nav" aria-label="Main">
-    <a class="nav-mark" href="/">stable<span class="rails">rails</span></a>
-    <a href="/docs">docs</a>
-  </nav>
+  ${siteNavHtml()}
 </header>
 
 <main class="wrap">

@@ -17,6 +17,7 @@
  */
 
 import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
+import { siteNavHtml, SITE_NAV_CSS } from "./siteNav.js";
 
 // ── HTML escape ───────────────────────────────────────────────────────────────
 
@@ -174,10 +175,14 @@ function renderDocs(styleNonce?: string, scriptNonce?: string): string {
       .endpoint-header { gap: .5rem; }
       .auth-badge { margin-left: 0; }
     }
+    /* ── Shared site nav ─────────────────────────────────────────────── */
+${SITE_NAV_CSS}
+    .snav { margin-bottom: 1.6rem; }
   </style>
 </head>
 <body>
 <div class="page-wrap">
+  ${siteNavHtml({ active: "docs" })}
 
   <!-- Header -->
   <div class="page-header">

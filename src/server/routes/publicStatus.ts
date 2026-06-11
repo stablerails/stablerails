@@ -126,7 +126,7 @@ export async function registerPublicStatusRoutes(
           .code(404)
           .header("Content-Type", "text/html; charset=utf-8")
           .header("Content-Security-Policy", STATIC_ERROR_PAGE_CSP)
-          .send("<html><body><h1>Счёт не найден</h1></body></html>");
+          .send("<html><body><h1>Invoice not found</h1></body></html>");
       }
 
       // Rate-limit the checkout page using the same bucket as JSON status polling.
@@ -138,7 +138,7 @@ export async function registerPublicStatusRoutes(
           .code(429)
           .header("Content-Type", "text/html; charset=utf-8")
           .header("Content-Security-Policy", STATIC_ERROR_PAGE_CSP)
-          .send("<html><body><h1>Слишком много запросов</h1></body></html>");
+          .send("<html><body><h1>Too many requests</h1></body></html>");
       }
 
       const invoice = await invoiceRepo.findById(invoiceId);
@@ -147,7 +147,7 @@ export async function registerPublicStatusRoutes(
           .code(404)
           .header("Content-Type", "text/html; charset=utf-8")
           .header("Content-Security-Policy", STATIC_ERROR_PAGE_CSP)
-          .send("<html><body><h1>Счёт не найден</h1></body></html>");
+          .send("<html><body><h1>Invoice not found</h1></body></html>");
       }
 
       // Pass both the script and style nonces so the inline <script> and <style> are

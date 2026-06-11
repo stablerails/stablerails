@@ -24,6 +24,7 @@
 
 import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import { isDemoEnabled } from "../utils.js";
+import { siteNavHtml, SITE_NAV_CSS } from "./siteNav.js";
 
 function esc(s: string): string {
   return String(s)
@@ -189,20 +190,7 @@ function renderLanding(scriptNonce?: string, styleNonce?: string, demoEnabled?: 
     a, button { -webkit-tap-highlight-color: transparent; }
     .wrap { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
 
-    /* ── top nav ─────────────────────────────────────────── */
-    .nav {
-      display: flex; align-items: center; gap: 1.5rem;
-      padding: 1.1rem 0; border-bottom: 1px solid var(--line);
-      font-family: var(--mono); font-size: .8rem;
-    }
-    .nav-mark { display: inline-flex; align-items: center; gap: .55rem; color: var(--text); font-weight: 700; letter-spacing: -.02em; }
-    .nav-mark:hover { text-decoration: none; }
-    .nav-mark svg { color: var(--acc); }
-    .nav-links { margin-left: auto; display: flex; align-items: center; gap: 1.4rem; flex-wrap: wrap; }
-    .nav-links a { color: var(--muted); transition: color .15s ease; display: inline-block; padding: .55rem 0; margin: -.55rem 0; }
-    .nav-links a:hover { color: var(--text); text-decoration: none; }
-    .nav-login { border: 1px solid var(--line-strong); padding: .35rem .8rem; border-radius: 6px; transition: color .15s ease, border-color .15s ease; }
-    .nav-login:hover { border-color: var(--acc); color: var(--acc-bright); }
+    /* ── top nav (shared) ────────────────────────────────── */${SITE_NAV_CSS}
 
     /* ── hero ────────────────────────────────────────────── */
     .hero { padding: 7rem 0 5.5rem; }
@@ -491,22 +479,7 @@ function renderLanding(scriptNonce?: string, styleNonce?: string, demoEnabled?: 
 <body>
 
 <header class="wrap">
-  <nav class="nav" aria-label="Main">
-    <a class="nav-mark" href="/">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
-        <path d="M4 7h16M4 17h16M8 7v10M16 7v10"/>
-      </svg>
-      stablerails
-    </a>
-    <div class="nav-links">
-      <a href="/setup">setup</a>
-      <a href="/docs">docs</a>
-      <a href="/agents">agents</a>
-      <a href="https://github.com/stablerails/stablerails" rel="noopener">github</a>
-      <a href="${demoHref}"${demoRel}>live demo</a>
-      <a class="nav-login" href="/login">operator login</a>
-    </div>
-  </nav>
+  ${siteNavHtml({ active: "home", demoHref })}
 </header>
 
 <main class="wrap">

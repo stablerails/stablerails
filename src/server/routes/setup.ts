@@ -13,6 +13,7 @@
  */
 
 import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
+import { siteNavHtml, SITE_NAV_CSS } from "./siteNav.js";
 
 const REPO_URL = "https://github.com/stablerails/stablerails";
 
@@ -101,20 +102,21 @@ function renderSetup(styleNonce?: string, scriptNonce?: string): string {
     a:focus-visible, button:focus-visible { outline: 2px solid var(--acc-bright); outline-offset: 2px; }
     a, button { -webkit-tap-highlight-color: transparent; }
     .wrap { max-width: 880px; margin: 0 auto; padding: 0 24px; }
-    .nav {
-      display: flex; align-items: baseline; justify-content: space-between; gap: 1.4rem;
-      padding: 1.1rem 0; border-bottom: 1px solid var(--line);
-      font-family: var(--mono); font-size: .8rem;
-    }
-    .nav-mark { color: var(--text); font-weight: 700; }
-    .nav-mark .rails { color: var(--acc-bright); }
-    .nav-mark:hover { text-decoration: none; }
-    .nav a { color: var(--muted); }
-    .nav a.nav-mark { color: var(--text); }
+${SITE_NAV_CSS}
     .hero { padding: 4rem 0 2.5rem; }
     h1 { font-family: var(--mono); font-size: clamp(1.8rem, 5vw, 2.6rem); letter-spacing: -.03em; margin-bottom: .8rem; }
     h1 em { font-style: normal; color: var(--acc-bright); }
     .sub { color: var(--muted); max-width: 56ch; }
+    .fork { display: grid; grid-template-columns: 1fr 1fr; gap: 1.4rem; margin: 1.4rem 0 2.6rem; }
+    .fork-card {
+      border: 1px solid rgba(38, 161, 123, .35); border-radius: 12px; padding: 1.6rem;
+      background: linear-gradient(180deg, rgba(38, 161, 123, .06), transparent 50%), var(--panel);
+      box-shadow: 0 10px 32px rgba(0, 0, 0, .28);
+    }
+    .fork-card h2 { font-family: var(--mono); font-size: 1.1rem; margin-bottom: .4rem; }
+    .fork-card p { font-size: .9rem; color: var(--muted); margin-bottom: .4rem; }
+    .fork-card em { font-style: normal; color: var(--acc-bright); }
+    @media (max-width: 720px) { .fork { grid-template-columns: 1fr; } }
     .path {
       border: 1px solid var(--line-strong); border-radius: 10px; background: var(--panel);
       padding: 1.4rem; margin: 1.4rem 0;
@@ -161,20 +163,28 @@ function renderSetup(styleNonce?: string, scriptNonce?: string): string {
 <body>
 
 <header class="wrap">
-  <nav class="nav" aria-label="Main">
-    <a class="nav-mark" href="/">stable<span class="rails">rails</span></a>
-    <span>
-      <a href="/docs">docs</a> &nbsp;&middot;&nbsp;
-      <a href="/agents">agents</a> &nbsp;&middot;&nbsp;
-      <a href="${REPO_URL}" rel="noopener">github</a>
-    </span>
-  </nav>
+  ${siteNavHtml({ active: "setup" })}
 </header>
 
 <main class="wrap">
   <section class="hero">
     <h1>Run Stablerails. <em>Three ways.</em></h1>
     <p class="sub">One Docker command. One prompt to your agent. Or from source. No signup, no KYB, no one to wait for &mdash; it&#39;s your server.</p>
+  </section>
+
+  <section class="fork" aria-label="Hosted or self-hosted">
+    <div class="fork-card">
+      <span class="path-no">Fastest &middot; hosted</span>
+      <h2>Use a hosted instance</h2>
+      <p>We run the watch-only server for you: checkout, API, dashboard. You keep what matters &mdash; the keys. Funds flow to <em>your</em> wallet; sweeps are signed on <em>your</em> machine. We could not touch your money even if we wanted to.</p>
+      <p class="fine">Early access: <a href="mailto:good@stablerails.org">good@stablerails.org</a></p>
+    </div>
+    <div class="fork-card">
+      <span class="path-no">Full sovereignty &middot; self-host</span>
+      <h2>Run it yourself</h2>
+      <p>Your VPS, your URL, your data. Three ways below: one Docker command, an agent prompt, or from source.</p>
+      <p class="fine"><a href="#docker">pick a path &darr;</a></p>
+    </div>
   </section>
 
   <section class="path" id="docker">
