@@ -527,3 +527,50 @@ describe("merchant dashboard tenant isolation", () => {
     expect(dashA.body).not.toContain("inv-b-1");
   });
 });
+
+// ── Browser form submissions (urlencoded) ──────────────────────────────────────
+
+describe("POST /signup — browser form mode", () => {
+  it("form success redirects 303 to /m/login?new=1 (not raw JSON)", async () => {
+    const { app } = buildSignupApp();
+    const res = await app.inject({
+      method: "POST",
+      url: "/signup",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      payload: "email=form-user%40example.com&password=longenough123",
+    });
+    expect(res.statusCode).toBe(303);
+    expect(res.headers["location"]).toBe("/m/login?new=1");
+  });
+
+  it("form duplicate email gets the byte-identical redirect (no existence leak)", async () => {
+    const { app } = buildSignupApp();
+    const payload = "email=dup-form%40example.com&password=longenough123";
+    const headers = { "content-type": "application/x-www-form-urlencoded" };
+    const first = await app.inject({ method: "POST", url: "/signup", headers, payload });
+    const second = await app.inject({ method: "POST", url: "/signup", headers, payload });
+    expect(second.statusCode).toBe(first.statusCode);
+    expect(second.headers["location"]).toBe(first.headers["location"]);
+    expect(second.body).toBe(first.body);
+  });
+
+  it("form validation error re-renders the signup page as HTML", async () => {
+    const { app } = buildSignupApp();
+    const res = await app.inject({
+      method: "POST",
+      url: "/signup",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      payload: "email=x%40example.com&password=short",
+    });
+    expect(res.statusCode).toBe(400);
+    expect(res.headers["content-type"]).toContain("text/html");
+    expect(res.body).toContain("at least 10 characters");
+  });
+
+  it("GET /m/login?new=1 shows the neutral account-ready notice", async () => {
+    const { app } = buildSignupApp();
+    const res = await app.inject({ method: "GET", url: "/m/login?new=1" });
+    expect(res.statusCode).toBe(200);
+    expect(res.body).toContain("Account ready. Sign in to continue.");
+  });
+});

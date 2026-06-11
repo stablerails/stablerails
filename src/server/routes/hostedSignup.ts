@@ -120,7 +120,7 @@ function signupPage(error?: string, styleNonce?: string): string {
 </html>`;
 }
 
-function merchantLoginPage(error?: string, styleNonce?: string): string {
+function merchantLoginPage(error?: string, styleNonce?: string, notice?: string): string {
   const sa = styleNonce ? ` nonce="${styleNonce}"` : "";
   return `<!doctype html>
 <html lang="en">
@@ -128,12 +128,13 @@ function merchantLoginPage(error?: string, styleNonce?: string): string {
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Sign in — Stablerails</title>
-  <style${sa}>${SHARED_CSS}</style>
+  <style${sa}>${SHARED_CSS}    .notice { color: #3ddc97; font-family: ui-monospace, Menlo, monospace; font-size: .85rem; margin-bottom: 1rem; border: 1px solid rgba(38,161,123,.4); background: rgba(38,161,123,.12); border-radius: 8px; padding: .7rem .9rem; }
+  </style>
 </head>
 <body>
   <div class="card">
     <h1><span class="usdt-dot"></span>Sign in</h1>
-    ${error ? `<div class="error">${esc(error)}</div>` : ""}
+    ${notice ? `<p class="notice">${notice}</p>` : ""}${error ? `<div class="error">${esc(error)}</div>` : ""}
     <form method="POST" action="/m/login">
       <label for="email">Email</label>
       <input type="email" id="email" name="email" required autocomplete="email" />
@@ -355,16 +356,25 @@ export async function registerHostedSignupRoutes(
     "/signup",
     { config: { rawBody: true } },
     async (req: FastifyRequest, reply: FastifyReply) => {
+      const ct = req.headers["content-type"] ?? "";
+      const isForm = ct.includes("application/x-www-form-urlencoded");
+      const nonce = (reply as FastifyReply & { cspNonce?: { style?: string } }).cspNonce?.style;
+      const formError = (code: number, msg: string) =>
+        reply.code(code).header("Content-Type", "text/html; charset=utf-8").send(signupPage(msg, nonce));
+      // ALL non-error form outcomes land on the same redirect — success and
+      // duplicate are indistinguishable in destination, body, and timing (AUTH-5).
+      const formNeutral = () => reply.code(303).header("Location", "/m/login?new=1").send();
+
       // AUTH-1: Rate limit BEFORE any DB or argon2 work.
       const ip = req.socket?.remoteAddress ?? "unknown";
       if (!rateLimiter.check("signup", ip)) {
+        if (isForm) return formError(429, "Too many attempts. Try again in a few minutes.");
         return reply.code(429).send({ error: { code: "RATE_LIMITED", message: "Too many requests" } });
       }
 
       let email: string | undefined;
       let password: string | undefined;
 
-      const ct = req.headers["content-type"] ?? "";
       if (ct.includes("application/x-www-form-urlencoded")) {
         const body = req.body as Record<string, string>;
         email = body["email"];
@@ -376,11 +386,13 @@ export async function registerHostedSignupRoutes(
       }
 
       if (!email || !password) {
+        if (isForm) return formError(400, "Email and password are required.");
         return reply.code(400).send({ error: { code: "BAD_REQUEST", message: "email and password are required" } });
       }
 
       // Password minimum length: 10 chars
       if (password.length < 10) {
+        if (isForm) return formError(400, "Password must be at least 10 characters.");
         return reply.code(400).send({ error: { code: "PASSWORD_TOO_SHORT", message: "Password must be at least 10 characters" } });
       }
 
@@ -393,7 +405,8 @@ export async function registerHostedSignupRoutes(
         } catch {
           // Decoy result irrelevant — always return the neutral body
         }
-        // AUTH-5 content equalization: same body as real success — do not leak existence.
+        // AUTH-5 content equalization: same response as real success — do not leak existence.
+        if (isForm) return formNeutral();
         return reply.code(200).send(SIGNUP_NEUTRAL_BODY);
       }
 
@@ -405,12 +418,14 @@ export async function registerHostedSignupRoutes(
       } catch (err) {
         // Concurrent duplicate (race between check and insert) — same neutral body.
         if (typeof err === "object" && err !== null && (err as { code?: unknown }).code === "P2002") {
+          if (isForm) return formNeutral();
           return reply.code(200).send(SIGNUP_NEUTRAL_BODY);
         }
         throw err;
       }
 
-      // Real success — same body as all other paths (content equalization).
+      // Real success — same response as all other paths (content equalization).
+      if (isForm) return formNeutral();
       return reply.code(200).send(SIGNUP_NEUTRAL_BODY);
     },
   );
@@ -421,10 +436,11 @@ export async function registerHostedSignupRoutes(
     { config: { helmet: FORM_PAGE_HELMET } },
     async (req: FastifyRequest, reply: FastifyReply) => {
       const nonce = (reply as FastifyReply & { cspNonce?: { style?: string } }).cspNonce?.style;
+      const fromSignup = (req.query as { new?: string } | undefined)?.new === "1";
       return reply
         .code(200)
         .header("Content-Type", "text/html; charset=utf-8")
-        .send(merchantLoginPage(undefined, nonce));
+        .send(merchantLoginPage(undefined, nonce, fromSignup ? "Account ready. Sign in to continue." : undefined));
     },
   );
 
