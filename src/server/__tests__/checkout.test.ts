@@ -38,9 +38,9 @@ function makeInvoice(overrides: Partial<InvoiceRow> = {}): InvoiceRow {
 // ── SUCCESS state: paid ───────────────────────────────────────────────────────
 
 describe("renderCheckout — paid status (success state)", () => {
-  it("includes success panel markup with 'Оплачено' text", async () => {
+  it("includes success panel markup with 'Paid' text", async () => {
     const html = await renderCheckout(makeInvoice({ status: "paid", amountReceived: "100.000000" }));
-    expect(html).toContain("Оплачено");
+    expect(html).toContain("Paid ✓");
   });
 
   it("success panel does NOT have the hidden class on initial paid render", async () => {
@@ -69,9 +69,9 @@ describe("renderCheckout — paid status (success state)", () => {
 // ── SUCCESS state: overpaid ────────────────────────────────────────────────────
 
 describe("renderCheckout — overpaid status (success state)", () => {
-  it("includes success panel markup with 'Оплачено' text", async () => {
+  it("includes success panel markup with 'Paid' text", async () => {
     const html = await renderCheckout(makeInvoice({ status: "overpaid", amountReceived: "110.000000" }));
-    expect(html).toContain("Оплачено");
+    expect(html).toContain("Paid ✓");
   });
 
   it("success panel does NOT have the hidden class on initial overpaid render", async () => {
@@ -91,16 +91,16 @@ describe("renderCheckout — overpaid status (success state)", () => {
 
   it("shows the received amount in the success panel", async () => {
     const html = await renderCheckout(makeInvoice({ status: "overpaid", amountReceived: "110.000000" }));
-    expect(html).toContain("110.000000");
+    expect(html).toContain('id="success-amount">110</span>'); // trailing zeros trimmed for display
   });
 });
 
 // ── TERMINAL state: expired ───────────────────────────────────────────────────
 
 describe("renderCheckout — expired status (terminal state)", () => {
-  it("includes 'Срок оплаты истёк' text", async () => {
+  it("includes 'Invoice expired' text", async () => {
     const html = await renderCheckout(makeInvoice({ status: "expired" }));
-    expect(html).toContain("Срок оплаты истёк");
+    expect(html).toContain("Invoice expired");
   });
 
   it("terminal panel does NOT have the hidden class on initial expired render", async () => {
@@ -127,9 +127,9 @@ describe("renderCheckout — expired status (terminal state)", () => {
 // ── TERMINAL state: canceled ──────────────────────────────────────────────────
 
 describe("renderCheckout — canceled status (terminal state)", () => {
-  it("includes 'Срок оплаты истёк' text", async () => {
+  it("includes 'Invoice expired' text", async () => {
     const html = await renderCheckout(makeInvoice({ status: "canceled" }));
-    expect(html).toContain("Срок оплаты истёк");
+    expect(html).toContain("Invoice expired");
   });
 
   it("terminal panel does NOT have the hidden class on canceled", async () => {
@@ -150,18 +150,18 @@ describe("renderCheckout — overdue status (terminal state)", () => {
   // the "invoice invalid / expired" copy from expired/canceled.
   it("shows late-funds acknowledgment title for overdue", async () => {
     const html = await renderCheckout(makeInvoice({ status: "overdue" }));
-    expect(html).toContain("Платёж получен с опозданием");
+    expect(html).toContain("Payment received late");
   });
 
   it("does NOT show expired wording for overdue (misleading to a customer who paid)", async () => {
     const html = await renderCheckout(makeInvoice({ status: "overdue" }));
-    expect(html).not.toContain("счёт недействителен");
+    expect(html).not.toContain("no longer valid");
   });
 
-  it("does NOT show 'Срок оплаты истёк' title for overdue", async () => {
+  it("does NOT show 'Invoice expired' title for overdue", async () => {
     const html = await renderCheckout(makeInvoice({ status: "overdue" }));
     // This title belongs to expired/canceled, not to a state where funds arrived.
-    expect(html).not.toContain("Срок оплаты истёк");
+    expect(html).not.toContain("Invoice expired");
   });
 
   it("terminal panel does NOT have the hidden class on overdue", async () => {
