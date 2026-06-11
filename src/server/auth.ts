@@ -236,6 +236,49 @@ export class InMemorySessionStore {
 
 export const SESSION_COOKIE_NAME = "stablerails_session";
 
+// ── Merchant session store (hosted-signup feature) ───────────────────────────
+//
+// Parallel to InMemorySessionStore but carries merchantId instead of operatorId.
+// Using a separate cookie name and store ensures merchant sessions are never
+// accepted by the operator session gate (and vice versa).
+
+export const MERCHANT_SESSION_COOKIE_NAME = "stablerails_merchant_session";
+
+export interface MerchantSessionData {
+  merchantId: string;
+  email: string;
+  createdAt: number;
+}
+
+export class InMemoryMerchantSessionStore {
+  private readonly sessions = new Map<string, MerchantSessionData>();
+  private readonly ttlMs: number;
+
+  constructor(ttlMs = 8 * 60 * 60 * 1000) {
+    this.ttlMs = ttlMs;
+  }
+
+  create(data: Omit<MerchantSessionData, "createdAt">): string {
+    const id = randomBytes(32).toString("hex");
+    this.sessions.set(id, { ...data, createdAt: Date.now() });
+    return id;
+  }
+
+  get(id: string): MerchantSessionData | null {
+    const s = this.sessions.get(id);
+    if (!s) return null;
+    if (Date.now() - s.createdAt > this.ttlMs) {
+      this.sessions.delete(id);
+      return null;
+    }
+    return s;
+  }
+
+  delete(id: string): void {
+    this.sessions.delete(id);
+  }
+}
+
 // ── Bearer token extraction ───────────────────────────────────────────────────
 
 export function extractBearerToken(req: FastifyRequest): string | null {

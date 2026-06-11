@@ -67,6 +67,11 @@ enum SweepIntentStatus {
   failed
 }
 
+enum MerchantStatus {
+  active
+  suspended
+}
+
 // ── Models ───────────────────────────────────────────────────────────────────
 
 model Event {
@@ -268,4 +273,18 @@ model KillSwitch {
   area      String   @id
   paused    Boolean  @default(false)
   updatedAt DateTime @updatedAt
+}
+
+// ── Hosted signup (STABLERAILS_HOSTED_SIGNUP=1) ──────────────────────────────
+//
+// Merchant records for the self-serve onboarding flow.
+// Existing ApiKey.merchantId / Event.merchantId string columns reference
+// Merchant.id by VALUE — no FK constraint to keep legacy tenants working.
+
+model Merchant {
+  id           String         @id @default(cuid())
+  email        String         @unique
+  passwordHash String
+  status       MerchantStatus @default(active)
+  createdAt    DateTime       @default(now())
 }

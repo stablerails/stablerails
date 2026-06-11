@@ -43,6 +43,12 @@ export const RATE_LIMIT_BUCKETS: Record<string, RateLimitBucket> = {
    * redirected by the session gate).
    */
   dashboard: { maxRequests: 120, windowMs: 60_000 },
+  /**
+   * Merchant self-serve signup — keyed by TCP socket IP.
+   * Same tight limit as login: 10 attempts per 10 minutes per IP.
+   * Fires BEFORE any argon2/DB work.
+   */
+  signup: { maxRequests: 10, windowMs: 600_000 },
 };
 
 /** Injectable clock for testing. */

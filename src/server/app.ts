@@ -15,7 +15,7 @@ import helmet from "@fastify/helmet";
 
 import type { EventRepository, InvoiceRepository, DepositAddressDeriver, Clock } from "../core/ports.js";
 import type { RateConfig } from "../core/pricing.js";
-import type { ApiKeyRepository, OperatorRepository, LoginTokenRepository } from "./auth.js";
+import type { ApiKeyRepository, OperatorRepository, LoginTokenRepository, InMemoryMerchantSessionStore } from "./auth.js";
 import { InMemorySessionStore } from "./auth.js";
 import type { WebhookRepository } from "./routes/webhooksAdmin.js";
 import type { SweepIntentRepository } from "./routes/sweeps.js";
@@ -24,6 +24,7 @@ import type { KillSwitchRepository } from "./killswitch-repo.js";
 import { initKillSwitchRepo } from "./killswitch.js";
 import type { InvoiceIdempotencyRepository } from "./routes/invoices.js";
 import type { SendResult } from "../workers/webhookDelivery.js";
+import type { MerchantRepository } from "./merchants.js";
 
 import { registerEventRoutes } from "./routes/events.js";
 import { registerInvoiceRoutes } from "./routes/invoices.js";
@@ -45,6 +46,7 @@ import { registerAgentsRoutes } from "./routes/agents.js";
 import { registerTermsRoutes } from "./routes/terms.js";
 import { registerLlmsRoutes } from "./routes/llms.js";
 import { registerOpsStatusRoutes } from "./routes/opsStatus.js";
+import { registerHostedSignupRoutes } from "./routes/hostedSignup.js";
 import { isDemoEnabled } from "./utils.js";
 
 // ── Port / dependency bundle ──────────────────────────────────────────────────
@@ -99,6 +101,16 @@ export interface AppDeps {
   assertUrl?: (url: string) => Promise<void>;
   /** Logger level: "silent" for tests. */
   logLevel?: "info" | "warn" | "error" | "silent" | "debug";
+  /**
+   * Hosted signup: merchant repository.
+   * Required when STABLERAILS_HOSTED_SIGNUP=1; ignored otherwise.
+   */
+  merchantRepo?: MerchantRepository;
+  /**
+   * Hosted signup: merchant session store.
+   * Required when STABLERAILS_HOSTED_SIGNUP=1; ignored otherwise.
+   */
+  merchantSessionStore?: InMemoryMerchantSessionStore;
 }
 
 /** Minimal address validator: Tron Base58 starts with 'T' and has ~34 chars. */
@@ -170,6 +182,8 @@ export function buildApp(deps: AppDeps): FastifyInstance {
     assertUrl,
     logLevel = "info",
     killSwitchRepo,
+    merchantRepo,
+    merchantSessionStore,
   } = deps;
 
   // Wire DB-backed kill-switch repo (if provided) so isPausedAsync queries DB.
@@ -309,6 +323,32 @@ export function buildApp(deps: AppDeps): FastifyInstance {
   void registerAgentsRoutes(app);
   void registerTermsRoutes(app);
   registerLlmsRoutes(app);
+
+  // ── Hosted signup (gated by STABLERAILS_HOSTED_SIGNUP=1) ─────────────────
+  // Self-hosters must explicitly opt-in. When unset, all /signup/* and
+  // /m/* routes are NOT registered and return 404.
+  if (process.env["STABLERAILS_HOSTED_SIGNUP"] === "1" && merchantRepo && merchantSessionStore) {
+    // Derivation account allocator: find the next unused account index
+    // by scanning the event repo. In production this would use a DB sequence;
+    // here we compute max(existing) + 1 to be safe for in-memory and Prisma paths.
+    const getNextDerivationAccount = async (): Promise<number> => {
+      if (typeof eventRepo.list !== "function") return 0;
+      const allEvents = await eventRepo.list();
+      const maxAcc = allEvents.reduce((m, e) => Math.max(m, e.derivationAccount), -1);
+      return maxAcc + 1;
+    };
+
+    void registerHostedSignupRoutes(app, {
+      merchantRepo,
+      merchantSessionStore,
+      apiKeyRepo,
+      eventRepo,
+      invoiceRepo,
+      addressValidator,
+      rateLimiter,
+      getNextDerivationAccount,
+    });
+  }
 
   // ── Demo page (gated by ENABLE_DEMO=1) ───────────────────────────────────
   // Never mount in production, even if the env flag is accidentally set.

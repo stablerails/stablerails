@@ -37,6 +37,7 @@ import type { WebhookRepository, WebhookEndpointRecord } from "../../routes/webh
 import { RateLimiter } from "../../../lib/rate-limit.js";
 import type { AppDeps } from "../../app.js";
 import { InMemoryKillSwitchRepository } from "../../killswitch-repo.js";
+import type { MerchantRepository } from "../../merchants.js";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -590,6 +591,8 @@ export class UnboundedRateLimiter extends RateLimiter {
       login: { maxRequests: 999_999, windowMs: 60_000 },
       // dashboard: unbounded for tests
       dashboard: { maxRequests: 999_999, windowMs: 60_000 },
+      // signup: unbounded for tests that don't test rate-limiting behaviour.
+      signup: { maxRequests: 999_999, windowMs: 60_000 },
     });
   }
 }
