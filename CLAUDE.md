@@ -34,7 +34,7 @@ The server never holds keys; sweeps require a human passphrase on the operator's
 ## Conventions
 
 - **Money**: all amounts are micro-USDT bigint (6 decimals). `1 USDT = 1_000_000n`. Never use floats. Stored as decimal string `"1.000000"`. Minimum invoice amount is **0.01 USDT** (10 000 micro); `POST /v1/invoices` rejects anything below with `400 AMOUNT_TOO_SMALL` (MONEY-3).
-- **User-facing messages**: Russian
+- **User-facing messages**: English
 - **Code, comments, variables**: English
 - **`paid` only at solid block**: two independent checks required. (1) Finality fence: `latestSolidBlock = min(primarySolid, secondarySolid)` — the most conservative agreed solid height. (2) Per-tx block agreement (WATCH-1): `effectiveBlockNumber = max(primaryBN, secondaryBN)` where both BNs come from receipt parsing via `gettransactioninfobyid`; a payment is credited toward `paid` only when `effectiveBlockNumber <= latestSolidBlock`, i.e. BOTH providers place the tx at/below solid. If either provider returns no receipt, or their receipts disagree on amount/address, the candidate is SKIPPED entirely this tick (no "detected" placeholder for unconfirmed txs). Recovers on the next tick. Never 0-conf.
 - **Server↛signer boundary**: `src/server/**` and `src/workers/**` MUST NOT import `src/signer/**` (enforced via ESLint `import/no-restricted-paths`).

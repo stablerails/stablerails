@@ -18,10 +18,12 @@ import {
   PrismaInvoiceIdempotencyRepository,
   PrismaInvoiceRepository,
   PrismaSweepIntentRepository,
+  PrismaMerchantRepository,
   TronDepositAddressDeriver,
   SystemClock,
   FixedRateSource,
 } from "./db/adapters.js";
+import { InMemoryMerchantSessionStore } from "./auth.js";
 import { ChainCursorRepositoryPrisma } from "../workers/db/ChainCursorRepository.js";
 import { RateLimiter } from "../lib/rate-limit.js";
 
@@ -39,6 +41,10 @@ const PUBLIC_BASE_URL =
 const prisma = getPrismaClient();
 const killSwitchRepo = new KillSwitchRepositoryPrisma(prisma);
 const eventRepo = new PrismaEventRepository(prisma);
+// Hosted-signup (STABLERAILS_HOSTED_SIGNUP=1): merchant repo + session store.
+// Instantiated unconditionally — buildApp only wires them when the flag is set.
+const merchantRepo = new PrismaMerchantRepository(prisma);
+const merchantSessionStore = new InMemoryMerchantSessionStore();
 const invoiceRepo = new PrismaInvoiceRepository(prisma);
 const invoiceIdempotencyRepo = new PrismaInvoiceIdempotencyRepository(prisma);
 const sweepIntentRepo = new PrismaSweepIntentRepository(prisma);
@@ -208,6 +214,8 @@ const app = buildApp({
   loginTokenRepo,
   webhookRepo,
   killSwitchRepo,
+  merchantRepo,
+  merchantSessionStore,
   rateLimiter: new RateLimiter(),
   publicBaseUrl: PUBLIC_BASE_URL,
   getHeadBlockNumber,

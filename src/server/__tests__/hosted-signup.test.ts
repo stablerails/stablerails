@@ -148,33 +148,47 @@ describe("signup happy path", () => {
   });
 });
 
-// ── Duplicate email → same response shape (AUTH-5 pattern) ───────────────────
+// ── Duplicate email → byte-identical response (AUTH-5 content equalization) ───
 
 describe("duplicate email indistinguishable from success", () => {
-  it("second signup with same email returns 200 with identical shape", async () => {
+  it("success and duplicate response bodies are strictly equal (byte-identical)", async () => {
     const app = buildSignupApp(true);
 
-    const first = await app.inject({
+    const successRes = await app.inject({
       method: "POST",
       url: "/signup",
       headers: { "content-type": "application/json" },
       payload: { email: "dup@example.com", password: "strongpassword1" },
     });
-    expect(first.statusCode).toBe(200);
-    const firstBody = JSON.parse(first.body);
+    expect(successRes.statusCode).toBe(200);
 
-    const second = await app.inject({
+    const dupRes = await app.inject({
       method: "POST",
       url: "/signup",
       headers: { "content-type": "application/json" },
       payload: { email: "dup@example.com", password: "anotherpassword2" },
     });
-    expect(second.statusCode).toBe(200);
-    const secondBody = JSON.parse(second.body);
+    expect(dupRes.statusCode).toBe(200);
 
-    // Same top-level shape — no existence leak
-    expect(Object.keys(secondBody)).toEqual(Object.keys(firstBody));
-    expect(secondBody.data.message).toBeTruthy();
+    // Byte-identical body — no content leak (AUTH-5 content equalization).
+    // If this fails, an attacker can enumerate accounts via response body diff.
+    expect(dupRes.body).toBe(successRes.body);
+  });
+
+  it("signup response message does not imply an email was sent", async () => {
+    const app = buildSignupApp(true);
+    // First signup (success path)
+    const res = await app.inject({
+      method: "POST",
+      url: "/signup",
+      headers: { "content-type": "application/json" },
+      payload: { email: "nomsg@example.com", password: "strongpassword1" },
+    });
+    const body = JSON.parse(res.body) as { data: { message: string } };
+    // Must not imply email delivery (we send no emails)
+    expect(body.data.message.toLowerCase()).not.toContain("check");
+    expect(body.data.message.toLowerCase()).not.toContain("verify");
+    expect(body.data.message.toLowerCase()).not.toContain("sent");
   });
 });
 
