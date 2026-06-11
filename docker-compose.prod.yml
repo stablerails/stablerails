@@ -59,6 +59,8 @@ services:
       STABLERAILS_DATA_KEY: "${STABLERAILS_DATA_KEY:-}"
       # Boot-time kill-switches (optional; empty = not paused)
       STABLERAILS_PAUSE_INVOICES: "${STABLERAILS_PAUSE_INVOICES:-}"
+      # Hosted self-serve signup (default OFF — only the canonical hosted instance enables it)
+      STABLERAILS_HOSTED_SIGNUP: "${STABLERAILS_HOSTED_SIGNUP:-}"
       STABLERAILS_PAUSE_WATCHER: "${STABLERAILS_PAUSE_WATCHER:-}"
       STABLERAILS_PAUSE_WEBHOOKS: "${STABLERAILS_PAUSE_WEBHOOKS:-}"
       # Demo page (testnet deploys only — keep ENABLE_DEMO off on mainnet)
