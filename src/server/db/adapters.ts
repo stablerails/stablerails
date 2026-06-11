@@ -35,6 +35,7 @@ import type {
   InvoiceIdempotencyReservation,
   InvoiceIdempotencyRepository,
 } from "../routes/invoices.js";
+import type { MerchantRepository, MerchantRecord, MerchantStatus } from "../merchants.js";
 
 // Re-export the unified PrismaInvoiceRepository so server/index.ts keeps its import.
 export { PrismaInvoiceRepository } from "../../db/InvoiceRepositoryPrisma.js";
@@ -390,5 +391,48 @@ export class PrismaSweepIntentRepository implements SweepIntentRepository {
       data: { items: items as unknown as object },
     });
     return this.toRow(row);
+  }
+}
+
+// ── PrismaMerchantRepository ──────────────────────────────────────────────────
+//
+// Used by the hosted-signup feature (STABLERAILS_HOSTED_SIGNUP=1).
+// Maps Prisma's Merchant model (status as enum string) to the MerchantRecord
+// domain type.
+
+export class PrismaMerchantRepository implements MerchantRepository {
+  constructor(private readonly prisma: PrismaClient) {}
+
+  private toRecord(row: {
+    id: string;
+    email: string;
+    passwordHash: string;
+    status: string;
+    createdAt: Date;
+  }): MerchantRecord {
+    return {
+      id: row.id,
+      email: row.email,
+      passwordHash: row.passwordHash,
+      status: row.status as MerchantStatus,
+      createdAt: row.createdAt,
+    };
+  }
+
+  async findByEmail(email: string): Promise<MerchantRecord | null> {
+    const row = await this.prisma.merchant.findUnique({ where: { email } });
+    return row ? this.toRecord(row) : null;
+  }
+
+  async findById(id: string): Promise<MerchantRecord | null> {
+    const row = await this.prisma.merchant.findUnique({ where: { id } });
+    return row ? this.toRecord(row) : null;
+  }
+
+  async create(email: string, passwordHash: string): Promise<MerchantRecord> {
+    const row = await this.prisma.merchant.create({
+      data: { email, passwordHash },
+    });
+    return this.toRecord(row);
   }
 }

@@ -16,9 +16,9 @@
  *
  * Security:
  *   - AUTH-1 pattern: rate limit BEFORE any argon2 or DB work on signup/login.
- *   - AUTH-5 pattern: duplicate email runs decoy argon2.verify so timing is
- *     indistinguishable from a successful hash, and always returns the same
- *     neutral 200 response.
+ *   - AUTH-5 pattern: ALL three signup outcomes (success, pre-checked duplicate,
+ *     P2002 race duplicate) return a byte-identical body so email existence is
+ *     never leaked — even by content, not just timing.
  *   - Merchant session cookie (MERCHANT_SESSION_COOKIE_NAME) is SEPARATE from
  *     the operator session cookie — cross-session usage is impossible.
  *   - Wizard validates Base58Check (isValidBase58Address) to reject charset-valid
@@ -48,6 +48,12 @@ import { isValidBase58Address } from "../../chain/tron/addressCodec.js";
 const DECOY_HASH =
   "$argon2id$v=19$m=65536,t=3,p=4$Tkz3H8ZeEJxmBPL0iRsHxg$5tPIpP8hEeba+q5NRdRgFXiF8IW8GEpvwK9EhRB+EHc";
 
+// ── Neutral signup response (AUTH-5 + content equalization) ──────────────────
+// ALL three signup code paths — real success, pre-checked duplicate, and P2002
+// concurrent-duplicate — return this exact same payload so neither timing nor
+// body content leaks whether a given email address already has an account.
+const SIGNUP_NEUTRAL_BODY = { data: { message: "Account ready. Sign in to continue." } };
+
 // ── HTML helpers ──────────────────────────────────────────────────────────────
 
 function esc(s: string): string {
@@ -59,7 +65,7 @@ function esc(s: string): string {
     .replace(/'/g, "&#39;");
 }
 
-// Dark terminal aesthetic — matches existing site palette.
+// Dark terminal aesthetic — matches existing site palette (terms.ts / landing).
 const SHARED_CSS = `
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
@@ -90,25 +96,25 @@ const SHARED_CSS = `
 function signupPage(error?: string, styleNonce?: string): string {
   const sa = styleNonce ? ` nonce="${styleNonce}"` : "";
   return `<!doctype html>
-<html lang="ru">
+<html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Создать аккаунт — Stablerails</title>
+  <title>Create account — Stablerails</title>
   <style${sa}>${SHARED_CSS}</style>
 </head>
 <body>
   <div class="card">
-    <h1><span class="usdt-dot"></span>Создать аккаунт</h1>
+    <h1><span class="usdt-dot"></span>Create account</h1>
     ${error ? `<div class="error">${esc(error)}</div>` : ""}
     <form method="POST" action="/signup">
       <label for="email">Email</label>
       <input type="email" id="email" name="email" required autocomplete="email" />
-      <label for="password">Пароль (мин. 10 символов)</label>
+      <label for="password">Password (min. 10 characters)</label>
       <input type="password" id="password" name="password" required autocomplete="new-password" />
-      <button type="submit">Создать аккаунт</button>
+      <button type="submit">Create account</button>
     </form>
-    <p class="hint">Уже есть аккаунт? <a href="/m/login">Войти</a></p>
+    <p class="hint">Already have an account? <a href="/m/login">Sign in</a></p>
   </div>
 </body>
 </html>`;
@@ -117,25 +123,25 @@ function signupPage(error?: string, styleNonce?: string): string {
 function merchantLoginPage(error?: string, styleNonce?: string): string {
   const sa = styleNonce ? ` nonce="${styleNonce}"` : "";
   return `<!doctype html>
-<html lang="ru">
+<html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Войти — Stablerails</title>
+  <title>Sign in — Stablerails</title>
   <style${sa}>${SHARED_CSS}</style>
 </head>
 <body>
   <div class="card">
-    <h1><span class="usdt-dot"></span>Войти</h1>
+    <h1><span class="usdt-dot"></span>Sign in</h1>
     ${error ? `<div class="error">${esc(error)}</div>` : ""}
     <form method="POST" action="/m/login">
       <label for="email">Email</label>
       <input type="email" id="email" name="email" required autocomplete="email" />
-      <label for="password">Пароль</label>
+      <label for="password">Password</label>
       <input type="password" id="password" name="password" required autocomplete="current-password" />
-      <button type="submit">Войти</button>
+      <button type="submit">Sign in</button>
     </form>
-    <p class="hint">Нет аккаунта? <a href="/signup">Создать</a></p>
+    <p class="hint">No account yet? <a href="/signup">Create one</a></p>
   </div>
 </body>
 </html>`;
@@ -144,11 +150,11 @@ function merchantLoginPage(error?: string, styleNonce?: string): string {
 function wizardPage(styleNonce?: string): string {
   const sa = styleNonce ? ` nonce="${styleNonce}"` : "";
   return `<!doctype html>
-<html lang="ru">
+<html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Настройка магазина — Stablerails</title>
+  <title>Set up your store — Stablerails</title>
   <style${sa}>${SHARED_CSS}
     .card { max-width: 480px; }
     .step-label { font-size: .67rem; font-weight: 700; color: #26A17B;
@@ -158,20 +164,20 @@ function wizardPage(styleNonce?: string): string {
 </head>
 <body>
   <div class="card">
-    <p class="step-label">Настройка магазина</p>
-    <h1>Данные вашего магазина</h1>
+    <p class="step-label">Store setup</p>
+    <h1>Your store details</h1>
     <form method="POST" action="/signup/store">
-      <label for="storeName">Название магазина</label>
-      <input type="text" id="storeName" name="storeName" required placeholder="Мой магазин" />
-      <label for="mainWalletAddress">Адрес для вывода (Tron Base58)</label>
+      <label for="storeName">Store name</label>
+      <input type="text" id="storeName" name="storeName" required placeholder="My Store" />
+      <label for="mainWalletAddress">Sweep-to address (Tron Base58)</label>
       <input type="text" id="mainWalletAddress" name="mainWalletAddress" required
         placeholder="T..." autocomplete="off" />
-      <p class="field-hint">Адрес кошелька, куда будут sweepиться средства.</p>
+      <p class="field-hint">Funds will be swept to this address.</p>
       <label for="xpubAccount0">xPub (account 0)</label>
       <input type="text" id="xpubAccount0" name="xpubAccount0" required
         placeholder="xpub…" autocomplete="off" />
-      <p class="field-hint">Расширенный публичный ключ BIP44, account 0.</p>
-      <button type="submit">Создать магазин</button>
+      <p class="field-hint">BIP44 extended public key, account 0.</p>
+      <button type="submit">Create store</button>
     </form>
   </div>
 </body>
@@ -187,11 +193,11 @@ function successPage(
   const sa = styleNonce ? ` nonce="${styleNonce}"` : "";
   const sc = scriptNonce ? ` nonce="${scriptNonce}"` : "";
   return `<!doctype html>
-<html lang="ru">
+<html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Готово — Stablerails</title>
+  <title>Store created — Stablerails</title>
   <style${sa}>${SHARED_CSS}
     .card { max-width: 540px; }
     .key-wrap { margin-bottom: 1.25rem; }
@@ -215,24 +221,24 @@ function successPage(
 </head>
 <body>
   <div class="card">
-    <h1><span class="usdt-dot"></span>Магазин создан!</h1>
-    <div class="warn">Ключи показаны <strong>один раз</strong>. Нажмите на поле чтобы увидеть ключ, затем скопируйте его.</div>
+    <h1><span class="usdt-dot"></span>Store created</h1>
+    <div class="warn">Keys shown <strong>once only</strong>. Click a field to reveal it, then copy.</div>
 
     <div class="key-wrap">
       <div class="key-label">Merchant API Key (merchant scope)</div>
-      <div class="key-box" id="mk" data-key="${esc(merchantKey)}" title="Нажмите чтобы показать">${esc(merchantKey)}</div>
-      <button class="copy-btn" id="mk-copy">Скопировать</button>
-      <div class="reveal-hint">Нажмите на поле чтобы показать</div>
+      <div class="key-box" id="mk" data-key="${esc(merchantKey)}" title="Click to reveal">${esc(merchantKey)}</div>
+      <button class="copy-btn" id="mk-copy">Copy</button>
+      <div class="reveal-hint">Click the field to reveal</div>
     </div>
 
     <div class="key-wrap">
       <div class="key-label">Readonly API Key (readonly scope)</div>
-      <div class="key-box" id="rk" data-key="${esc(readonlyKey)}" title="Нажмите чтобы показать">${esc(readonlyKey)}</div>
-      <button class="copy-btn" id="rk-copy">Скопировать</button>
-      <div class="reveal-hint">Нажмите на поле чтобы показать</div>
+      <div class="key-box" id="rk" data-key="${esc(readonlyKey)}" title="Click to reveal">${esc(readonlyKey)}</div>
+      <button class="copy-btn" id="rk-copy">Copy</button>
+      <div class="reveal-hint">Click the field to reveal</div>
     </div>
 
-    <p class="hint"><a href="/m/dashboard">Перейти к панели управления</a></p>
+    <p class="hint"><a href="/m/dashboard">Go to dashboard</a></p>
   </div>
   <script${sc}>
     ['mk','rk'].forEach(function(id) {
@@ -248,7 +254,7 @@ function successPage(
         var key = box.getAttribute('data-key') || '';
         navigator.clipboard.writeText(key).then(function() {
           var prev = btn.textContent;
-          btn.textContent = 'Скопировано!';
+          btn.textContent = 'Copied!';
           setTimeout(function() { btn.textContent = prev; }, 1500);
         });
       });
@@ -385,10 +391,10 @@ export async function registerHostedSignupRoutes(
         try {
           await argon2.verify(DECOY_HASH, password);
         } catch {
-          // Decoy result irrelevant — always return neutral 200
+          // Decoy result irrelevant — always return the neutral body
         }
-        // Same neutral response as success — do not leak existence
-        return reply.code(200).send({ data: { message: "Проверьте ваш email для следующего шага" } });
+        // AUTH-5 content equalization: same body as real success — do not leak existence.
+        return reply.code(200).send(SIGNUP_NEUTRAL_BODY);
       }
 
       // Hash the password (same argon2id defaults as operator path)
@@ -397,14 +403,15 @@ export async function registerHostedSignupRoutes(
       try {
         await merchantRepo.create(email, passwordHash);
       } catch (err) {
-        // Concurrent duplicate (race between check and insert) — treat as above
+        // Concurrent duplicate (race between check and insert) — same neutral body.
         if (typeof err === "object" && err !== null && (err as { code?: unknown }).code === "P2002") {
-          return reply.code(200).send({ data: { message: "Проверьте ваш email для следующего шага" } });
+          return reply.code(200).send(SIGNUP_NEUTRAL_BODY);
         }
         throw err;
       }
 
-      return reply.code(200).send({ data: { message: "Аккаунт создан. Войдите чтобы продолжить." } });
+      // Real success — same body as all other paths (content equalization).
+      return reply.code(200).send(SIGNUP_NEUTRAL_BODY);
     },
   );
 
@@ -554,7 +561,7 @@ export async function registerHostedSignupRoutes(
 
       // Validate mainWalletAddress (full Base58Check)
       if (!mainWalletAddress || !isValidBase58Address(mainWalletAddress)) {
-        return reply.code(422).send({ error: { code: "INVALID_TRON_ADDRESS", message: `mainWalletAddress is not a valid Tron Base58Check address` } });
+        return reply.code(422).send({ error: { code: "INVALID_TRON_ADDRESS", message: "mainWalletAddress is not a valid Tron Base58Check address" } });
       }
 
       const merchantId = session.merchantId;
@@ -657,7 +664,7 @@ export async function registerHostedSignupRoutes(
       const ip = req.socket?.remoteAddress ?? "unknown";
       if (!rateLimiter.check("dashboard", ip)) {
         return reply.code(429).header("Content-Type", "text/html; charset=utf-8").send(
-          "<html><body><h1>Слишком много запросов</h1></body></html>",
+          "<html><body><h1>Too many requests</h1></body></html>",
         );
       }
 
@@ -689,7 +696,7 @@ export async function registerHostedSignupRoutes(
       const scriptNonceAttr = cspNonce?.script ? ` nonce="${cspNonce.script}"` : "";
 
       const rows = invoices.length === 0
-        ? `<tr><td colspan="5" style="padding:2rem;text-align:center;color:#334155;">Счета не найдены</td></tr>`
+        ? `<tr><td colspan="5" style="padding:2rem;text-align:center;color:#334155;">No invoices found</td></tr>`
         : invoices.map((inv) => {
             const shortId = inv.id.slice(0, 12) + "…";
             const createdFmt = inv.createdAt.toISOString().replace("T", " ").slice(0, 16);
@@ -707,11 +714,11 @@ export async function registerHostedSignupRoutes(
       ).join("\n");
 
       const html = `<!doctype html>
-<html lang="ru">
+<html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Панель продавца — Stablerails</title>
+  <title>Merchant dashboard — Stablerails</title>
   <style${styleNonceAttr}>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
@@ -737,25 +744,25 @@ export async function registerHostedSignupRoutes(
 </head>
 <body>
   <div class="hdr">
-    <h1>Панель продавца</h1>
+    <h1>Merchant dashboard</h1>
     <span class="email">${esc(session.email)}</span>
   </div>
 
   <div class="section">
-    <div class="section-title">API ключи</div>
+    <div class="section-title">API keys</div>
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Префикс</th><th>Scope</th></tr></thead>
-        <tbody>${keyRows || '<tr><td colspan="2" style="padding:1rem;color:#334155;">Нет ключей</td></tr>'}</tbody>
+        <thead><tr><th>Prefix</th><th>Scope</th></tr></thead>
+        <tbody>${keyRows || '<tr><td colspan="2" style="padding:1rem;color:#334155;">No keys</td></tr>'}</tbody>
       </table>
     </div>
   </div>
 
   <div class="section">
-    <div class="section-title">Счета</div>
+    <div class="section-title">Invoices</div>
     <div class="table-wrap">
       <table>
-        <thead><tr><th>ID</th><th>Сумма</th><th>Статус</th><th>USDT</th><th>Создан</th></tr></thead>
+        <thead><tr><th>ID</th><th>Amount</th><th>Status</th><th>USDT</th><th>Created</th></tr></thead>
         <tbody>${rows}</tbody>
       </table>
     </div>
