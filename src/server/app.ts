@@ -43,6 +43,7 @@ import { registerMetricsRoutes } from "./routes/metrics.js";
 import { registerDocsRoutes } from "./routes/docs.js";
 import { registerSetupRoutes } from "./routes/setup.js";
 import { registerAgentsRoutes } from "./routes/agents.js";
+import { registerHostedRoutes } from "./routes/hosted.js";
 import { registerTermsRoutes } from "./routes/terms.js";
 import { registerLlmsRoutes } from "./routes/llms.js";
 import { registerOpsStatusRoutes } from "./routes/opsStatus.js";
@@ -321,6 +322,7 @@ export function buildApp(deps: AppDeps): FastifyInstance {
   void registerDocsRoutes(app);
   void registerSetupRoutes(app);
   void registerAgentsRoutes(app);
+  void registerHostedRoutes(app);
   void registerTermsRoutes(app);
   registerLlmsRoutes(app);
 

@@ -337,6 +337,23 @@ function renderLanding(scriptNonce?: string, styleNonce?: string, demoEnabled?: 
     .zero-cap { font-family: var(--mono); font-size: .75rem; letter-spacing: .06em; color: var(--muted); }
     @media (max-width: 720px) { .zeros { grid-template-columns: repeat(2, 1fr); row-gap: 2rem; } }
 
+    /* the fork: hosted vs self-host */
+    .fork { display: grid; grid-template-columns: 1fr 1fr; gap: 1.4rem; padding: 2.4rem 0 0; }
+    .fork-card {
+      display: flex; flex-direction: column; gap: .45rem;
+      border: 1px solid rgba(38, 161, 123, .35); border-radius: 12px; padding: 1.6rem;
+      background: linear-gradient(180deg, rgba(38, 161, 123, .06), transparent 50%), var(--panel);
+      box-shadow: 0 10px 32px rgba(0, 0, 0, .28);
+      color: var(--text); text-decoration: none;
+      transition: transform 180ms cubic-bezier(.16, 1, .3, 1), border-color .15s ease;
+    }
+    .fork-card:hover { text-decoration: none; transform: translateY(-2px); border-color: var(--acc); }
+    .fork-tag { font-family: var(--mono); font-size: .7rem; letter-spacing: .14em; text-transform: uppercase; color: var(--acc); }
+    .fork-title { font-family: var(--mono); font-size: 1.1rem; font-weight: 700; letter-spacing: -.01em; }
+    .fork-text { font-size: .9rem; color: var(--muted); max-width: 46ch; }
+    .fork-cta { font-family: var(--mono); font-size: .85rem; font-weight: 700; color: var(--acc-bright); margin-top: .35rem; }
+    @media (max-width: 720px) { .fork { grid-template-columns: 1fr; } }
+
     /* "what you don't need" dotted-leader ledger */
     .none-ledger { max-width: 640px; margin-bottom: 1.6rem; }
     .none-row { display: flex; align-items: baseline; gap: .8rem; font-family: var(--mono); font-size: .85rem; padding: .5rem 0; }
@@ -508,6 +525,22 @@ function renderLanding(scriptNonce?: string, styleNonce?: string, demoEnabled?: 
     <div class="zero"><span class="zero-fig">0</span><span class="zero-cap">keys on the server</span></div>
     <div class="zero"><span class="zero-fig">0</span><span class="zero-cap">third-party requests</span></div>
     <div class="zero"><span class="zero-fig">0</span><span class="zero-cap">accounts to freeze</span></div>
+  </section>
+
+  <!-- ── THE FORK: hosted vs self-host ────────────────────── -->
+  <section class="fork" aria-label="Two ways to run on rails">
+    <a class="fork-card" href="/hosted">
+      <span class="fork-tag">fastest &middot; hosted</span>
+      <span class="fork-title">Start in minutes, no server</span>
+      <span class="fork-text">Create an account, connect your wallet, get an API key. We host checkout and webhooks; only you can spend the funds.</span>
+      <span class="fork-cta">create account &rarr;</span>
+    </a>
+    <a class="fork-card" href="/setup">
+      <span class="fork-tag">free forever &middot; self-host</span>
+      <span class="fork-title">Run it on your own box</span>
+      <span class="fork-text">Your VPS, your URL, your data. One Docker command, an agent prompt, or from source.</span>
+      <span class="fork-cta">pick a path &rarr;</span>
+    </a>
   </section>
 
   <!-- ── 2 · HOW IT WORKS ─────────────────────────────────── -->
