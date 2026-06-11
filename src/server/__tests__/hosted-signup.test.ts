@@ -532,7 +532,7 @@ describe("merchant dashboard tenant isolation", () => {
 
 describe("POST /signup — browser form mode", () => {
   it("form success redirects 303 to /m/login?new=1 (not raw JSON)", async () => {
-    const { app } = buildSignupApp();
+    const app = buildSignupApp();
     const res = await app.inject({
       method: "POST",
       url: "/signup",
@@ -544,7 +544,7 @@ describe("POST /signup — browser form mode", () => {
   });
 
   it("form duplicate email gets the byte-identical redirect (no existence leak)", async () => {
-    const { app } = buildSignupApp();
+    const app = buildSignupApp();
     const payload = "email=dup-form%40example.com&password=longenough123";
     const headers = { "content-type": "application/x-www-form-urlencoded" };
     const first = await app.inject({ method: "POST", url: "/signup", headers, payload });
@@ -555,7 +555,7 @@ describe("POST /signup — browser form mode", () => {
   });
 
   it("form validation error re-renders the signup page as HTML", async () => {
-    const { app } = buildSignupApp();
+    const app = buildSignupApp();
     const res = await app.inject({
       method: "POST",
       url: "/signup",
@@ -568,7 +568,7 @@ describe("POST /signup — browser form mode", () => {
   });
 
   it("GET /m/login?new=1 shows the neutral account-ready notice", async () => {
-    const { app } = buildSignupApp();
+    const app = buildSignupApp();
     const res = await app.inject({ method: "GET", url: "/m/login?new=1" });
     expect(res.statusCode).toBe(200);
     expect(res.body).toContain("Account ready. Sign in to continue.");
