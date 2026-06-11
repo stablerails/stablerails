@@ -37,6 +37,11 @@ function esc(s: string): string {
     .replace(/'/g, "&#39;");
 }
 
+/** "10.000000" -> "10", "27.310000" -> "27.31" — cents only when they exist. */
+function displayAmount(s: string): string {
+  return s.includes(".") ? s.replace(/0+$/, "").replace(/\.$/, "") : s;
+}
+
 export async function renderCheckout(invoice: InvoiceRow, scriptNonce?: string, styleNonce?: string): Promise<string> {
   const qrSvg = await generateQrSvg(invoice.depositAddress);
 
@@ -62,14 +67,14 @@ export async function renderCheckout(invoice: InvoiceRow, scriptNonce?: string, 
   const pendingUiHidden = isSuccess || isTerminal;
 
   const statusMap: Record<string, string> = {
-    pending: "Ожидание оплаты",
-    payment_detected: "Платёж обнаружен",
-    paid: "Оплачено",
-    underpaid: "Недостаточная оплата",
-    overpaid: "Оплата превышена",
-    expired: "Истёк срок",
-    canceled: "Отменён",
-    overdue: "Просрочен",
+    pending: "Awaiting payment",
+    payment_detected: "Payment detected",
+    paid: "Paid",
+    underpaid: "Underpaid",
+    overpaid: "Overpaid",
+    expired: "Expired",
+    canceled: "Canceled",
+    overdue: "Late payment",
   };
 
   const statusLabel = statusMap[invoice.status] ?? invoice.status;
@@ -80,11 +85,11 @@ export async function renderCheckout(invoice: InvoiceRow, scriptNonce?: string, 
   const hiddenIf = (cond: boolean) => cond ? " hidden" : "";
 
   return `<!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Оплата USDT — ${esc(invoiceId)}</title>
+  <title>Pay with USDT — ${esc(invoiceId)}</title>
   <style${styleNonceAttr}>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -513,16 +518,16 @@ export async function renderCheckout(invoice: InvoiceRow, scriptNonce?: string, 
   <!-- Header -->
   <div class="card-header">
     <div class="usdt-icon">&#x20AE;</div>
-    <span class="card-title">Оплата счёта</span>
+    <span class="card-title">Invoice payment</span>
   </div>
 
   <!-- Amount hero -->
   <div class="amount-section">
     <div class="amount-primary">
-      <span class="amount-val">${esc(amount)}</span>
+      <span class="amount-val">${esc(displayAmount(amount))}</span>
       <span class="amount-currency">USDT</span>
     </div>
-    <div class="amount-fiat">&#x2248; ${esc(fiatAmount)}&nbsp;${esc(fiatCurrency)}</div>
+    <div class="amount-fiat">&#x2248; ${esc(displayAmount(fiatAmount))}&nbsp;${esc(fiatCurrency)}</div>
   </div>
 
   <!-- Network badge: TRON TRC-20 -->
@@ -536,29 +541,29 @@ export async function renderCheckout(invoice: InvoiceRow, scriptNonce?: string, 
   <!-- QR code: hidden on success/terminal initial render -->
   <div class="qr-section${hiddenIf(pendingUiHidden)}">
     <div class="qr-wrap">${qrSvg}</div>
-    <span class="qr-caption">Отсканируйте для оплаты</span>
+    <span class="qr-caption">Scan to pay</span>
   </div>
 
   <!-- Deposit address: hidden on success/terminal initial render -->
   <div class="address-section${hiddenIf(pendingUiHidden)}">
-    <div class="field-label">Адрес для оплаты (Tron TRC-20)</div>
+    <div class="field-label">Payment address (Tron TRC-20)</div>
     <div class="address-wrap">
       <div class="address" id="addr">${esc(address)}</div>
-      <button class="copy-btn" id="copy-btn" type="button" aria-label="Скопировать адрес">
+      <button class="copy-btn" id="copy-btn" type="button" aria-label="Copy address">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <rect x="9" y="9" width="13" height="13" rx="2"/>
           <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
         </svg>
       </button>
     </div>
-    <p class="copy-hint" id="copy-hint">Нажмите на адрес для копирования</p>
+    <p class="copy-hint" id="copy-hint">Tap the address to copy</p>
   </div>
 
   <!-- Copy-amount shortcut: hidden on success/terminal initial render -->
   <div class="copy-amount-wrapper${hiddenIf(pendingUiHidden)}">
-    <button id="copy-amount-btn" class="copy-amount-btn" type="button" aria-label="Скопировать сумму USDT">
+    <button id="copy-amount-btn" class="copy-amount-btn" type="button" aria-label="Copy USDT amount">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-      Скопировать сумму
+      Copy amount
     </button>
   </div>
 
@@ -570,8 +575,8 @@ export async function renderCheckout(invoice: InvoiceRow, scriptNonce?: string, 
       <line x1="12" y1="17" x2="12.01" y2="17"/>
     </svg>
     <p class="warning-text">
-      <strong>Только USDT на сети TRON (TRC-20).</strong>
-      Другие токены и сети приведут к безвозвратной потере средств.
+      <strong>USDT on TRON (TRC-20) only.</strong>
+      Any other token or network means permanent loss of funds.
     </p>
   </div>
 
@@ -582,7 +587,7 @@ export async function renderCheckout(invoice: InvoiceRow, scriptNonce?: string, 
       <span id="status-text">${esc(statusLabel)}</span>
     </div>
     <div class="countdown-row">
-      Действителен до:&nbsp;<span id="countdown-val"></span>
+      Expires in:&nbsp;<span id="countdown-val"></span>
     </div>
   </div>
 
@@ -596,11 +601,11 @@ export async function renderCheckout(invoice: InvoiceRow, scriptNonce?: string, 
         </svg>
       </div>
     </div>
-    <div class="success-title">Оплачено ✓</div>
+    <div class="success-title">Paid ✓</div>
     <div class="success-amount-line" id="success-amount-line">
-      <span id="success-amount">${esc(amountReceived)}</span> USDT
+      <span id="success-amount">${esc(displayAmount(amountReceived))}</span> USDT
     </div>
-    <div class="success-note">Платёж подтверждён. Спасибо!</div>
+    <div class="success-note">Payment confirmed. Thank you!</div>
   </div>
 
   <!-- Terminal panel (expired / canceled / overdue): shown immediately for terminal
@@ -614,10 +619,10 @@ export async function renderCheckout(invoice: InvoiceRow, scriptNonce?: string, 
         </svg>
       </div>
     </div>
-    <div class="terminal-title">${isOverdue ? "Платёж получен с опозданием" : "Срок оплаты истёк"}</div>
+    <div class="terminal-title">${isOverdue ? "Payment received late" : "Invoice expired"}</div>
     <div class="terminal-note">${isOverdue
-      ? "Свяжитесь с продавцом для подтверждения зачисления средств."
-      : "Этот счёт недействителен. Свяжитесь с продавцом для создания нового счёта."}</div>
+      ? "Contact the merchant to confirm your payment was credited."
+      : "This invoice is no longer valid. Contact the merchant for a new one."}</div>
   </div>
 
   <!-- Security footer -->
@@ -625,7 +630,7 @@ export async function renderCheckout(invoice: InvoiceRow, scriptNonce?: string, 
     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
       <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
     </svg>
-    Защищённое соединение &middot; Оплата через USDT / TRC-20
+    Secure connection &middot; USDT / TRC-20
   </div>
 
 </div>
@@ -633,18 +638,20 @@ export async function renderCheckout(invoice: InvoiceRow, scriptNonce?: string, 
 <script${scriptNonce ? ` nonce="${scriptNonce}"` : ""}>
   const INVOICE_ID = ${JSON.stringify(invoiceId)};
   const EXPIRES_AT = ${expiresAtMs};
-  const AMOUNT_USDT = ${JSON.stringify(amount)};
+  const AMOUNT_USDT = ${JSON.stringify(displayAmount(amount))};
+  // "10.000000" -> "10": cents only when they exist (mirror of server displayAmount).
+  function trimAmount(v) { v = String(v); return v.indexOf(".") >= 0 ? v.replace(/0+$/, "").replace(/\.$/, "") : v; }
   const POLL_INTERVAL = 5000;
 
   const statusLabels = {
-    pending: "Ожидание оплаты",
-    payment_detected: "Платёж обнаружен",
-    paid: "Оплачено",
-    underpaid: "Недостаточная оплата",
-    overpaid: "Оплата превышена",
-    expired: "Истёк срок",
-    canceled: "Отменён",
-    overdue: "Просрочен"
+    pending: "Awaiting payment",
+    payment_detected: "Payment detected",
+    paid: "Paid",
+    underpaid: "Underpaid",
+    overpaid: "Overpaid",
+    expired: "Expired",
+    canceled: "Canceled",
+    overdue: "Late payment"
   };
 
   function updateCountdown() {
@@ -652,7 +659,7 @@ export async function renderCheckout(invoice: InvoiceRow, scriptNonce?: string, 
     const el = document.getElementById("countdown-val");
     if (!el) return;
     if (rem <= 0) {
-      el.textContent = "Истёк";
+      el.textContent = "Expired";
       el.className = "urgent";
       return;
     }
@@ -668,10 +675,10 @@ export async function renderCheckout(invoice: InvoiceRow, scriptNonce?: string, 
     if (!addr) return;
     navigator.clipboard.writeText(addr.textContent || "").then(function() {
       if (hint) {
-        hint.textContent = "Скопировано!";
+        hint.textContent = "Copied!";
         hint.classList.add("copied");
         setTimeout(function() {
-          hint.textContent = "Нажмите на адрес для копирования";
+          hint.textContent = "Tap the address to copy";
           hint.classList.remove("copied");
         }, 2000);
       }
@@ -725,7 +732,7 @@ export async function renderCheckout(invoice: InvoiceRow, scriptNonce?: string, 
         // Use amountUsdt as the displayed amount — amountReceived is not in the
         // public API response. For paid this equals the received amount exactly;
         // for overpaid it shows the invoiced amount (conservative, no over-credit).
-        applySuccessState(data.amountUsdt);
+        applySuccessState(trimAmount(data.amountUsdt));
         terminated = true;
       } else if (data.status === "expired" || data.status === "canceled" || data.status === "overdue" || data.status === "underpaid") {
         // underpaid is in TERMINAL_STATUSES (lifecycle.ts) — polling must stop here;
@@ -747,7 +754,7 @@ export async function renderCheckout(invoice: InvoiceRow, scriptNonce?: string, 
     navigator.clipboard.writeText(AMOUNT_USDT).then(function() {
       if (btn) {
         var prev = btn.textContent;
-        btn.textContent = "Скопировано!";
+        btn.textContent = "Copied!";
         setTimeout(function() { btn.textContent = prev; }, 2000);
       }
     });
