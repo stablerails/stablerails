@@ -15,6 +15,7 @@
 
 import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import { AGENT_PROMPT, MCP_CONFIG, copyBlock } from "./setup.js";
+import { siteNavHtml, SITE_NAV_CSS } from "./siteNav.js";
 
 const OPERATE_PROMPT =
   "Connect to my Stablerails instance. Read https://stablerails.org/agents.md for the API shape. " +
@@ -56,16 +57,7 @@ function renderAgents(styleNonce?: string, scriptNonce?: string): string {
     a:focus-visible, button:focus-visible { outline: 2px solid var(--acc-bright); outline-offset: 2px; }
     a, button { -webkit-tap-highlight-color: transparent; }
     .wrap { max-width: 880px; margin: 0 auto; padding: 0 24px; }
-    .nav {
-      display: flex; align-items: baseline; justify-content: space-between; gap: 1.4rem;
-      padding: 1.1rem 0; border-bottom: 1px solid var(--line);
-      font-family: var(--mono); font-size: .8rem;
-    }
-    .nav-mark { color: var(--text); font-weight: 700; }
-    .nav-mark .rails { color: var(--acc-bright); }
-    .nav-mark:hover { text-decoration: none; }
-    .nav a { color: var(--muted); }
-    .nav a.nav-mark { color: var(--text); }
+${SITE_NAV_CSS}
     .hero { padding: 4rem 0 2.5rem; }
     h1 { font-family: var(--mono); font-size: clamp(1.8rem, 5vw, 2.6rem); letter-spacing: -.03em; margin-bottom: .8rem; }
     h1 em { font-style: normal; color: var(--acc-bright); }
@@ -113,14 +105,7 @@ function renderAgents(styleNonce?: string, scriptNonce?: string): string {
 <body>
 
 <header class="wrap">
-  <nav class="nav" aria-label="Main">
-    <a class="nav-mark" href="/">stable<span class="rails">rails</span></a>
-    <span>
-      <a href="/setup">setup</a> &nbsp;&middot;&nbsp;
-      <a href="/docs">docs</a> &nbsp;&middot;&nbsp;
-      <a href="https://github.com/stablerails/stablerails" rel="noopener">github</a>
-    </span>
-  </nav>
+  ${siteNavHtml({ active: "agents" })}
 </header>
 
 <main class="wrap">
