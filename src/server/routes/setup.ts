@@ -176,8 +176,8 @@ ${SITE_NAV_CSS}
     <div class="fork-card">
       <span class="path-no">Fastest &middot; hosted</span>
       <h2>Use a hosted instance</h2>
-      <p>We run the watch-only server for you: checkout, API, dashboard. You keep what matters &mdash; the keys. Funds flow to <em>your</em> wallet; sweeps are signed on <em>your</em> machine. We could not touch your money even if we wanted to.</p>
-      <p class="fine">Early access: <a href="mailto:good@stablerails.org">good@stablerails.org</a></p>
+      <p>We run the watch-only server for you: checkout, API, dashboard. You keep what matters: the keys. Funds flow to <em>your</em> wallet; sweeps are signed on <em>your</em> machine. We could not touch your money even if we wanted to.</p>
+      <p class="fine"><a href="https://stablerails.org/signup">Create an account &rarr;</a></p>
     </div>
     <div class="fork-card">
       <span class="path-no">Full sovereignty &middot; self-host</span>

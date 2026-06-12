@@ -67,10 +67,12 @@ describe("GET / — Stablerails landing page", () => {
     }
   });
 
-  it("contains the copyable init command and a copy button", async () => {
+  it("leads with the hosted signup CTA (SaaS-first)", async () => {
     const { body } = await fetchLanding();
-    expect(body).toContain("npx stablerails init");
-    expect(body).toContain('data-copy="npx stablerails init"');
+    expect(body).toContain("Create account");
+    // The signup CTA points at the canonical hosted instance, absolutely, so
+    // the page works verbatim on self-hosted instances too.
+    expect(body).toContain('href="https://stablerails.org/signup"');
   });
 
   it("contains the core positioning copy", async () => {
